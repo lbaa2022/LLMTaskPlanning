@@ -1,0 +1,4 @@
+- planner.model_name=EleutherAI/gpt-neo-1.3B
+- planner.score_function=avg
+- planner.fast_mode=False
+- planner.scoring_batch_size=1

@@ -1,0 +1,4 @@
+- planner.model_name=decapoda-research/llama-13b-hf
+- planner.score_function=sum
+- planner.fast_mode=False
+- planner.scoring_batch_size=16

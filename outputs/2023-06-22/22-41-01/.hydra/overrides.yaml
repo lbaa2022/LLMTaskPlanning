@@ -1,0 +1,3 @@
+- planner.model_name=facebook/opt-2.7b
+- planner.score_function=avg
+- planner.fast_mode=True

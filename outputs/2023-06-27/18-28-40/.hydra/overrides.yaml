@@ -1,0 +1,4 @@
+- planner.model_name=chainyo/alpaca-lora-7b
+- planner.score_function=sum
+- planner.fast_mode=True
+- planner.scoring_batch_size=1

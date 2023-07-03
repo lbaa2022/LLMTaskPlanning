@@ -1,0 +1,17 @@
+ai2thor==2.1.0
+torch>=1.11.0
+
+Flask==1.1.2
+Werkzeug==1.0.1
+Jinja2==2.11.3
+MarkupSafe==1.1.1
+itsdangerous==1.1.0
+revtok
+tqdm
+vocab
+opencv-python
+networkx
+transformers
+scipy
+hydra-core
+accelerate
