@@ -1,0 +1,5 @@
+- experiment.exp_name=debugging_230629_single
+- planner.model_name=decapoda-research/llama-13b-hf
+- planner.score_function=sum
+- planner.fast_mode=True
+- planner.scoring_batch_size=1

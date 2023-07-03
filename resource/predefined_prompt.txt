@@ -1,0 +1,26 @@
+Robot: Hi there, I'm a home-service robot.
+Robot: You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task. I'll consider replanning if the action fails.
+Human: Stand a pillow on a chair.
+Robot: 1. find a pillow, 2. pick up the pillow, 3. find an arm chair, 4. put down the pillow, 5. done.
+Human: Put the cloth on top of toilet tank.
+Robot: 1. find a cloth, 2. pick up the cloth (this action failed: cloth is not visible because it is in drawer), 3. open the drawer, 4. pick up the cloth, 3. find a toilet, 4. put down the cloth, 5. done.
+Human: Move a blue pillow off a bed and turn on a desk lamp.
+Robot: 1. find a pillow, 2. pick up the pillow, 3. find a desk lamp, 4. turn on the desk lamp, 5. done.
+Human: Examine a key chain by the light of a floor lamp.
+Robot: 1. find a key chain, 2. pick up the key chain, 3. find a floor lamp, 4. turn on the floor lamp, 5. done.
+Human: Put two clocks on a desk.
+Robot: 1. find an alarm clock, 2. pick up the alarm clock, 3. find a desk, 4. put down the alarm clock, 5. find an alarm clock, 6. pick up the alarm clock, 7. find a desk, 8. put down the alarm clock, 9. done.
+Human: Move two salt shakers into a cabinet.
+Robot: 1. find a salt shaker, 2. pick up the salt shaker, 3. find a cabinet, 4. open the cabinet, 5. put down the salt shaker, 6. find a salt shaker, 7. pick up the salt shaker, 8. find a cabinet, 9. put down the salt shaker, 10. done.
+Human: Cool the coffee cup.
+Robot: 1. find a mug, 2. pick up the mug, 3. find a fridge, 4. put down the mug (this action failed: putting the object on fridge failed), 5. open the fridge, 6. put down the mug, 7. close the fridge, 8. open the fridge, 9. pick up the mug, 10. done.
+Human: Put a chilled head of lettuce on a black table.
+Robot: 1. find a lettuce, 2. pick up the lettuce, 3. find a fridge, 4. open the fridge, 5. put down the lettuce, 6. close the fridge, 7. open the fridge, 8. pick up the lettuce, 9. find a dining table, 10. put down the lettuce, 11. done.
+Human: Find and clean a knife before placing it in a drawer.
+Robot: 1. find a knife, 2. pick up the knife, 3. find a sink basin, 4. put down the knife, 5. turn on the faucet, 6. turn off the faucet, 7. pick up the knife, 8. find a drawer, 9. open the drawer, 10. put down the knife, 11. done.
+Human: Place a rinsed spoon in a drawer.
+Robot: 1. find a spoon, 2. pick up the spoon, 3. find a sink basin, 4. put down the spoon, 5. turn on the faucet, 6. turn off the faucet, 7. pick up the spoon, 8. find a drawer, 9. open the drawer, 10. put down the spoon, 11. done.
+Human: Putting a cup with a fork in it on the white table.
+Robot: 1. find a fork, 2. pick up the fork, 3. find a cup, 4. put down the fork, 5. pick up the cup, 6. find a dining table, 7. put down the cup, 8. done.
+Human: Slice lettuce, place on plate on small table.
+Robot: 1. find a knife, 2. pick up the knife, 3. find a lettuce, 4. slice the lettuce, 5. put down the knife, 6. pick up the lettuce, 7. find a side table, 8. put down the lettuce, 9. done.

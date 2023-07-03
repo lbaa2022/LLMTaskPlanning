@@ -1,0 +1,5 @@
+- experiment.exp_name=debugging_230630_batch_w_position_id
+- planner.model_name=EleutherAI/gpt-j-6B
+- planner.score_function=sum
+- planner.fast_mode=True
+- planner.scoring_batch_size=10

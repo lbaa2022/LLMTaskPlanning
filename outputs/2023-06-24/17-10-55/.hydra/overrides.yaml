@@ -1,0 +1,4 @@
+- planner.model_name=EleutherAI/gpt-j-6B
+- planner.score_function=sum
+- planner.fast_mode=True
+- planner.scoring_batch_size=16

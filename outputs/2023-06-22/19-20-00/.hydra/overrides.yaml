@@ -1,0 +1,2 @@
+- planner.model_name=EleutherAI/gpt-neo-1.3B
+- planner.score_function=avg

@@ -1,0 +1,57 @@
+planner:
+  ### EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B
+  ### facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
+  ### chainyo/alpaca-lora-7b, decapoda-research/llama-13b-hf
+  model_name: "EleutherAI/gpt-neo-125M"
+  max_steps: 20
+  device: "cuda"
+  scoring_batch_size: 8
+  score_function: 'sum'
+  fast_mode: False
+
+prompt:
+  num_examples: 1
+  splitter: ""
+  prefix: "Robot: Hi there, I’m a robot operating in a home.\nRobot: You can ask me to do various tasks and I’ll tell you the sequence of actions I would do to accomplish your task.\n"
+  example_file_path: "resource/prompt_manual.json"
+
+dataset:
+  wah_testset: "dataset/test_short_single_filter_v2_goalchangenl.json"
+  wah_trainset: "dataset/train_short_single.json"
+  obj_dict_sim2nl: "resource/wah_corl_objects_sim2nl.json"
+  obj_dict_nl2sim: "resource/wah_corl_objects_nl2sim.json"
+
+experiment:
+  exp_name: "debugging_230628_batch_1"
+
+# experiment:
+#   exp_name: "corl_exp1_benchmark" # score: sum log probability
+#   exp_mode: "planning" # "planning", "simulation", "print"
+#   planning_result_dir: "results/planning"
+#   simulation_result_dir: "results/simulation"
+
+
+
+# planner:
+#   planner_type: "saycan" # "saycan", "hierarchical", "hp_v1"
+#   model_name: "EleutherAI/gpt-neo-125M" # "EleutherAI/gpt-neo-125M", "EleutherAI/gpt-neo-1.3B", "EleutherAI/gpt-neo-2.7B", "EleutherAI/gpt-j-6B"
+#   max_steps: 20
+#   device: "cuda"
+#   is_dynamic_skill: True
+#   is_batch_scoring: True
+#   batch_scoring_size: 8
+
+
+
+# environment:
+#   executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "0"}
+#   max_episode_length: 250
+#   observation_types: ['partial']
+#   use_editor: True #TODO: Flase 로도 가능하게?
+#   base_port: 8080
+#   recording_options: {
+#     'recording': False, 
+#     'output_folder': '/home/user/Projects/llm_plan/LMTaskPlanning/figs/230327', 
+#     'file_name_prefix': 'Test', 
+#     'cameras': ['PERSON_FROM_BACK']
+#   }

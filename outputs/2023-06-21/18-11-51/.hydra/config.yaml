@@ -1,0 +1,6 @@
+planner:
+  model_name: EleutherAI/gpt-neo-125M
+db:
+  driver: mysql
+  user: omry
+  password: secret

@@ -1,0 +1,4 @@
+planner:
+  model_name: chainyo/alpaca-lora-7b
+  max_steps: 20
+  device: cuda

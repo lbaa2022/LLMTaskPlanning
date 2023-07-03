@@ -1,0 +1,16 @@
+planner:
+  # EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B, EleutherAI/gpt-neox-20b
+  # facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
+  #
+  model: "facebook/opt-350m"
+  load_in_8bit: False
+  max_steps: 20
+  random_seed: 0
+  batch_size: 1  # 1 to disable batch processing
+  prompt_examples_per_task: 2
+  use_action_failure_msg: True  # this uses pre-written prompt
+
+alfred:
+  x_display: '1'
+  eval_set: 'valid_seen'  # valid_seen, valid_unseen
+  eval_portion_in_percent: 5  # use a small set for a faster evaluationin. 100 means a full set.

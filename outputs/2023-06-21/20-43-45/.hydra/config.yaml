@@ -1,0 +1,4 @@
+planner:
+  model_name: EleutherAI/gpt-neo-2.7B
+  max_steps: 20
+  device: cuda
