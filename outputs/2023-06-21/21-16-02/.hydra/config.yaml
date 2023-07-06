@@ -1,4 +1,0 @@
-planner:
-  model_name: decapoda-research/llama-13b-hf
-  max_steps: 20
-  device: cuda
