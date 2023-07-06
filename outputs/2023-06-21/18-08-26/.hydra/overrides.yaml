@@ -1,3 +1,0 @@
-- +db.driver=mysql
-- +db.user=omry
-- +db.password=secret
