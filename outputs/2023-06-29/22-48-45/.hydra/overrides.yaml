@@ -1,5 +1,0 @@
-- experiment.exp_name=debugging_230628_batch_8
-- planner.model_name=EleutherAI/gpt-neo-1.3B
-- planner.score_function=sum
-- planner.fast_mode=True
-- planner.scoring_batch_size=1
