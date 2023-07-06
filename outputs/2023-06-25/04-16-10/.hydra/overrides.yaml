@@ -1,4 +1,0 @@
-- planner.model_name=facebook/opt-2.7b
-- planner.score_function=sum
-- planner.fast_mode=False
-- planner.scoring_batch_size=1
