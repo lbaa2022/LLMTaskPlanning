@@ -1,5 +1,0 @@
-- experiment.exp_name=debugging_230703_super
-- planner.model_name=chainyo/alpaca-lora-7b
-- planner.score_function=sum
-- planner.fast_mode=True
-- planner.scoring_batch_size=10
