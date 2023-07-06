@@ -1,3 +1,5 @@
+_target_: AlfredEvaluator
+
 planner:
   # EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B, EleutherAI/gpt-neox-20b
   # facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
