@@ -3,7 +3,7 @@ import random
 from collections import defaultdict
 
 from src.task_planner import TaskPlanner
-from utils import ithor_name_to_natural_word, find_indefinite_article
+from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
 
 
 class AlfredTaskPlanner(TaskPlanner):

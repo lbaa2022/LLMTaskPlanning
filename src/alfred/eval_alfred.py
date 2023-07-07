@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from alfred.data.preprocess import Dataset
 from src.alfred.alfred_task_planner import AlfredTaskPlanner
-from thor_connector import ThorConnector
+from src.alfred.thor_connector import ThorConnector
 from utils import dotdict, load_task_json
 from tqdm import tqdm
 
