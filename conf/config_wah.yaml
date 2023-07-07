@@ -27,9 +27,9 @@ experiment:
 environment:
   observation_types: ['full']
   use_editor: True #TODO: Flase 로도 가능하게?
-  #base_port:
-  #port_id:
-  #executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "0"}
+  # base_port:
+  # port_id:
+  # executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "0"}
   recording_options: {
     'recording': False, 
     'output_folder': '/home/user/Projects/llm_plan/LMTaskPlanning/figs/230327', 
