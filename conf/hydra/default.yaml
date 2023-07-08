@@ -1,0 +1,2 @@
+run:
+  dir: outputs/${name}/${now:%Y-%m-%d}_${now:%H-%M-%S}

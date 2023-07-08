@@ -91,12 +91,7 @@ class AlfredEvaluator(Evaluator):
         # run
         start = time.time()
         x_display = cfg.alfred.x_display
-        model_name = cfg.planner.model_name
-        save_path = f'results/results_{model_name.split("/")[1]}_seed{cfg.planner.random_seed}_samples{cfg.prompt.num_examples}_{cfg.alfred.eval_set}'
-        if cfg.planner.use_action_failure_msg:
-            save_path += '_failure-msg'
-        if not os.path.exists(save_path):
-            os.makedirs(save_path)
+        save_path = cfg.out_dir
         results = self.evaluate_main(files, args_dict, planner, x_display, save_path)
 
         # print results
