@@ -14,25 +14,25 @@ from PIL import Image, ImageDraw, ImageFont
 from alfred.data.preprocess import Dataset
 from src.alfred.alfred_task_planner import AlfredTaskPlanner
 from src.alfred.thor_connector import ThorConnector
-from utils import dotdict, load_task_json
+from src.alfred.utils import dotdict, load_task_json
 from tqdm import tqdm
 
 import logging
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from src.evaluate import Evaluator
+from src.evaluator import Evaluator
 
 
 splits = 'alfred/data/splits/oct21.json'
 debug_executor = 0  # disable LLM planner
-font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf", 24)
+font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf", 24)
 log = logging.getLogger(__name__)
 
 
 class AlfredEvaluator(Evaluator):
-    def __init__(self, cfg):
-        self.cfg = cfg
+    def __init__(self, hparams):
+        self.cfg = hparams
 
     def evaluate(self):
         cfg = self.cfg
@@ -47,6 +47,7 @@ class AlfredEvaluator(Evaluator):
             planner = AlfredTaskPlanner(cfg)
         else:
             planner = None
+        planner.reset()  # init skill set
 
         # prepare
         args_dict = {'data': 'alfred/data/json_2.1.0', 'pframe': 300, 'fast_epoch': False,
@@ -58,7 +59,8 @@ class AlfredEvaluator(Evaluator):
             pprint.pprint({k: len(v) for k, v in splits.items()})
 
         # preprocessing
-        do_preprocessing = False  # set True if you don't have preprocessed files (pp folders)
+        number_of_dirs = len(list(os.listdir(args_dict['data'])))
+        do_preprocessing = number_of_dirs < 50  # one-time process
         if do_preprocessing:
             log.info("\nPreprocessing dataset... Do this once as required:")
             vocab = None  # todo
@@ -89,8 +91,8 @@ class AlfredEvaluator(Evaluator):
         # run
         start = time.time()
         x_display = cfg.alfred.x_display
-        model_name = cfg.planner.model
-        save_path = f'results/results_{model_name.split("/")[1]}_seed{cfg.planner.random_seed}_samples{cfg.planner.prompt_examples_per_task}_{cfg.alfred.eval_set}'
+        model_name = cfg.planner.model_name
+        save_path = f'results/results_{model_name.split("/")[1]}_seed{cfg.planner.random_seed}_samples{cfg.prompt.num_examples}_{cfg.alfred.eval_set}'
         if cfg.planner.use_action_failure_msg:
             save_path += '_failure-msg'
         if not os.path.exists(save_path):
@@ -163,7 +165,7 @@ class AlfredEvaluator(Evaluator):
         prev_action_msg = []
         while not done:
             # find next step
-            step = planner.plan_step(instruction_text, prev_steps, prev_action_msg)
+            step = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
             if step is None:
                 log.info("\tmax step reached")
                 break
@@ -171,7 +173,7 @@ class AlfredEvaluator(Evaluator):
             prev_steps.append(step)
             log.info(step)
 
-            if step == 'done':
+            if step in ['done', 'done.', 'done.\n']:
                 done = True
                 prev_action_msg.append('')
                 log.info("\tpredicted STOP")

@@ -7,35 +7,26 @@ from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
 
 
 class AlfredTaskPlanner(TaskPlanner):
-    def init_prompt(self, cfg):
-        prefix = [
-            "Robot: Hi there, I'm a home-service robot.",
-            "Robot: You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task."
-        ]
-
+    def init_prompt(self, prefix, example_file_path, num_examples, splitter):
         # load examples
         examples = defaultdict(list)
-        example_json_path = './resource/alfred_examples_for_prompt.json'
-        with open(example_json_path, 'r') as f:
+        with open(example_file_path, 'r') as f:
             examples_json = json.load(f)
             for e in examples_json:
                 examples[e['task type']].append(e)
 
         # example sampling
         examples_selected = []
-        n_samples_per_task_type = cfg.planner.prompt_examples_per_task
         task_types = ['pick_and_place_simple', 'look_at_obj_in_light', 'pick_two_obj_and_place',
                       'pick_cool_then_place_in_recep',
                       'pick_clean_then_place_in_recep', 'pick_and_place_with_movable_recep']
         for k in task_types:
             assert k in examples.keys()
-            examples_selected.extend(random.sample(examples[k], n_samples_per_task_type))
+            examples_selected.extend(random.sample(examples[k], num_examples))
 
         # make prompt string
         sentence_ending = '\n'
-        prompt = ''
-        for s in prefix:
-            prompt += (s + sentence_ending)
+        prompt = f"{prefix}{splitter}"
         for e in examples_selected:
             task_desc = e["task description"].strip()
             if task_desc[-1].isalnum():
