@@ -5,7 +5,7 @@ from torch.nn import CrossEntropyLoss
 
 class TaskPlanner:
     def __init__(self, cfg):
-        self.device = cfg.planner.device
+        self.device = cfg.planner.device  # TODO: use accelerate for multi-gpu
         self.max_steps = cfg.planner.max_steps
         self.model_name = cfg.planner.model_name
         self.scoring_batch_size = cfg.planner.scoring_batch_size
@@ -14,10 +14,10 @@ class TaskPlanner:
         
         ### Load pre-trained model
         print(f"LLM and tokenizer loading: {self.model_name}")
-        if self.model_name in ["EleutherAI/gpt-neo-125M", "EleutherAI/gpt-neo-1.3B", "EleutherAI/gpt-neo-2.7B", "EleutherAI/gpt-j-6B", "EleutherAI/gpt-neox-20b", "facebook/opt-350m", "facebook/opt-2.7b", "facebook/opt-30b", "facebook/opt-66b"]:
+        if "EleutherAI/gpt" in self.model_name or "facebook/opt" in self.model_name:
             self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        elif self.model_name in ["chainyo/alpaca-lora-7b", "decapoda-research/llama-13b-hf"]:
+        elif "alpaca" in self.model_name or "llama" in self.model_name:
             self.model = LlamaForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
             self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
         else:
@@ -33,6 +33,9 @@ class TaskPlanner:
     def reset(self, nl_act_list, nl_obj_list):
         self.nl_obj_list = nl_obj_list
         self.skill_set = self.init_skill_set(nl_act_list, nl_obj_list)
+
+    def reset(self):
+        self.skill_set = self.init_skill_set()
     
     def init_prompt(self, prefix, example_file_path, num_examples="all", splitter=""):
         raise NotImplementedError()
@@ -46,13 +49,13 @@ class TaskPlanner:
     def score(self, prompt, skill_set):
         scores = {}
         batch_skill_set_list = [skill_set[chunk:chunk + self.scoring_batch_size] for chunk in range(0, len(skill_set), self.scoring_batch_size)]
-        prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True).to("cuda")
+        prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
         prompt_len = prompt_tokens.attention_mask[0].sum().item()
         
         for batch_skill_set in batch_skill_set_list:
             batch_sentence = [f"{prompt} {skill}" for skill in batch_skill_set]
             size_B = len(batch_skill_set)
-            if self.model_name in ["chainyo/alpaca-lora-7b", "decapoda-research/llama-13b-hf"]:
+            if "alpaca" in self.model_name or "llama" in self.model_name:
                 batch_skill_set_for_model = batch_skill_set
             else:
                 batch_skill_set_for_model = [f" {skill}" for skill in batch_skill_set]
@@ -60,7 +63,7 @@ class TaskPlanner:
             if self.fast_mode:
                 with torch.no_grad():
                     prompt_output = self.model(**prompt_tokens, use_cache=True)
-                    skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False, return_tensors="pt", padding=True).to("cuda")
+                    skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
                     concat_attention_mask = torch.cat((prompt_tokens.attention_mask.repeat(size_B, 1), skill_tokens.attention_mask), dim=1)
                     batch_past_key_values = self.duplicate_past_key_values(prompt_output.past_key_values, size_B)
                     
@@ -74,7 +77,7 @@ class TaskPlanner:
                     attention_mask = skill_tokens.attention_mask
             else:
                 with torch.no_grad():
-                    sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt", padding=True).to("cuda")
+                    sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
                     output = self.model(sentence_tokens.input_ids, attention_mask=sentence_tokens.attention_mask, return_dict=True)
                     logits = output.logits[:, prompt_len-1:-1]
                     labels = sentence_tokens.input_ids[:, prompt_len:]
@@ -132,6 +135,33 @@ class TaskPlanner:
             prompt += f" {best_step}, {step + 2}."
         
         return step_seq, skill_set_size_seq
+    
+    def plan_step_by_step(self, query, prev_steps=(), prev_msgs=()):
+        if len(prev_steps) >= self.max_steps:
+            return None
+
+        prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1.'
+
+        for i, (step, msg) in enumerate(zip(prev_steps, prev_msgs)):
+            if self.use_action_failure_msg and len(msg) > 0:
+                prompt += step + f' (this action failed: {msg.lower()}), {i + 2}. '
+            else:
+                prompt += step + f', {i + 2}. '
+
+        # score
+        scores = self.score(prompt, self.skill_set)
+
+        # find the best step
+        results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
+        best_step = results[0][0]
+        best_step = best_step.strip()
+
+        print('---------------------------------------')
+        print(prompt)
+        print(f'{len(prev_steps) + 1}.{best_step}')
+        print('---------------------------------------')
+
+        return best_step
 
     def duplicate_past_key_values(self, past_key_values, batch_size):
         batch_past_key_values = []

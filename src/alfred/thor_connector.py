@@ -9,7 +9,7 @@ import logging
 from env.thor_env import ThorEnv
 from gen import constants
 from gen.utils.game_util import get_objects_with_name_and_prop
-from utils import natural_word_to_ithor_name
+from alfred.utils import natural_word_to_ithor_name
 
 
 log = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ class ThorConnector(ThorEnv):
                  quality='MediumCloseFitShadows',
                  build_path=constants.BUILD_PATH):
         super().__init__(x_display, player_screen_height, player_screen_width, quality, build_path)
-        self.font = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMonoBold.ttf", 24)
+        self.font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf", 24)
         self.agent_height = 0.9
         self.cur_receptacle = None
         self.reachable_positions, self.reachable_position_kdtree = None, None
