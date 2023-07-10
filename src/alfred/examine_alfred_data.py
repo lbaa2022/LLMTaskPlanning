@@ -3,6 +3,8 @@ from collections import defaultdict
 from pathlib import Path
 import json
 
+from src.alfred.alfred_task_planner import AlfredTaskPlanner
+
 data_path = 'alfred/data/json_2.1.0'
 
 
@@ -57,48 +59,72 @@ def load_tasks(split='train'):
     return tasks
 
 
-def convert_action_to_nl_skill(action, args):
+def convert_action_to_nl_skill(action, next_action, args):
     """ not accurate. need to manually update converted skills """
     from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
 
     steps = []
-    args_converted = [ithor_name_to_natural_word(e) for e in args]
+
+    args_converted = []  # e.g., desklamp -> DeskLamp
+    alfred_obj_list = [x.lower() for x in AlfredTaskPlanner.alfred_objs]
+    for a in args:
+        if len(a) == 0:
+            continue
+        elif 'basin' in a:
+            a = a.replace('basin', '')
+        elif a == 'handtowelholder':
+            a = 'handtowel'
+        assert a in alfred_obj_list, f'unknown object {a}'
+        idx = alfred_obj_list.index(a)
+        args_converted.append(AlfredTaskPlanner.alfred_objs[idx])
+
+    args_converted = [ithor_name_to_natural_word(e) for e in args_converted]
+    if len(args_converted) > 0:
+        o = args_converted[0]
+    elif action != 'NoOp':
+        raise ValueError(f'no objects in args')
 
     if action == 'GotoLocation':
-        o = args_converted[0]
-        steps.append(f'find {find_indefinite_article(o)} {o}')
+        if next_action == 'OpenObject' or next_action == 'PickupObject' or next_action == 'SliceObject':
+            # we avoid using receptacle names if the next step is open/pickup
+            # we use the object name that a robot interact with instead of receptacle names
+            pass
+        else:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
     elif action == 'OpenObject':
-        steps.append(f'open the {args_converted[0]}')
+        steps.append(f'find {find_indefinite_article(o)} {o}')
+        steps.append(f'open the {o}')
     elif action == 'CloseObject':
-        steps.append(f'close the {args_converted[0]}')
+        steps.append(f'close the {o}')
     elif action == 'PutObject':
-        steps.append(f'put down the {args_converted[0]}')
+        steps.append(f'put down the {o}')
     elif action == 'PickupObject':
-        steps.append(f'pick up the {args_converted[0]}')
+        steps.append(f'find {find_indefinite_article(o)} {o}')
+        steps.append(f'pick up the {o}')
     elif action == 'CleanObject':
-        steps.append(f'put down the {args_converted[0]}')
+        steps.append(f'put down the {o}')
         steps.append(f'turn on the faucet')
         steps.append(f'turn off the faucet')
-        steps.append(f'pick up the {args_converted[0]}')
+        steps.append(f'pick up the {o}')
     elif action == 'HeatObject':
         # note: incorrect if the robot uses a stove
         steps.append(f'open the microwave')
-        steps.append(f'put down the {args_converted[0]}')
+        steps.append(f'put down the {o}')
         steps.append(f'close the microwave')
         steps.append(f'turn on the microwave')
         steps.append(f'open the microwave')
-        steps.append(f'pick up the {args_converted[0]}')
+        steps.append(f'pick up the {o}')
     elif action == 'CoolObject':
         steps.append(f'open the fridge')
-        steps.append(f'put down the {args_converted[0]}')
+        steps.append(f'put down the {o}')
         steps.append(f'close the fridge')
         steps.append(f'open the fridge')
-        steps.append(f'pick up the {args_converted[0]}')
+        steps.append(f'pick up the {o}')
     elif action == 'ToggleObject':
-        steps.append(f'turn on the {args_converted[0]}')
+        steps.append(f'turn on the {o}')
     elif action == 'SliceObject':
-        steps.append(f'slice the {args_converted[0]}')
-        steps.append(f'pick up the {args_converted[0]}')
+        steps.append(f'find {find_indefinite_article(o)} {o}')
+        steps.append(f'slice the {o}')
     elif action == 'NoOp':
         pass
     else:
@@ -123,32 +149,49 @@ def export_train_examples(export=True, export_text_samples=True):
 
         for e in samples:
             print('Task id:', e['task_id'])
-            print('Task desc:', e['turk_annotations']['anns'][0]['task_desc'])
-            print('Step descriptions:')
-            for s in e['turk_annotations']['anns'][0]['high_descs']:
-                print('  ', s)
-
             NL_steps = []
             print('PDDL high-level actions:')
-            for s in e['plan']['high_pddl']:
+            skip_this_sample = False
+            for s_i, s in enumerate(e['plan']['high_pddl']):
                 action = s['discrete_action']['action']
+                next_action = None
+                if s_i < len(e['plan']['high_pddl']) - 1:
+                    next_action = e['plan']['high_pddl'][s_i + 1]['discrete_action']['action']
                 args = s['discrete_action']['args']
                 print('  ', action, args)
-                NL_steps.extend(convert_action_to_nl_skill(action, args))
 
-            print('Converted NL skills')
-            for s in NL_steps:
-                print('  ', s)
-            print(NL_steps)
-            selected_samples.append({
-                'task type': key,
-                'task id': e['task_id'],
-                'task description': e['turk_annotations']['anns'][0]['task_desc'],
-                'step description': e['turk_annotations']['anns'][0]['high_descs'],
-                'NL steps': NL_steps,
-                'PDDL steps': e['plan']['high_pddl']
-                })
-            print()
+                try:
+                    nl_skill = convert_action_to_nl_skill(action, next_action, args)
+                except ValueError:
+                    skip_this_sample = True
+                    break
+
+                if nl_skill:
+                    NL_steps.extend(nl_skill)
+
+            if skip_this_sample:
+                continue
+
+            n_annotations = len(e['turk_annotations']['anns'])
+            for ann_i in range(n_annotations):
+                print('Task desc:', e['turk_annotations']['anns'][ann_i]['task_desc'])
+                print('Step descriptions:')
+                for s in e['turk_annotations']['anns'][ann_i]['high_descs']:
+                    print('  ', s)
+
+                print('Converted NL skills')
+                for s in NL_steps:
+                    print('  ', s)
+                print(NL_steps)
+                selected_samples.append({
+                    'task type': key,
+                    'task id': e['task_id'],
+                    'task description': e['turk_annotations']['anns'][ann_i]['task_desc'],
+                    'step description': e['turk_annotations']['anns'][ann_i]['high_descs'],
+                    'NL steps': NL_steps,
+                    'PDDL steps': e['plan']['high_pddl']
+                    })
+                print()
 
     if export:
         with open('resource/alfred_examples_for_prompt.json', 'w') as fp:
@@ -157,6 +200,7 @@ def export_train_examples(export=True, export_text_samples=True):
     if export_text_samples:
         with open(f'resource/alfred_train_text_samples.txt', 'w') as fp:
             for sample in selected_samples:
+                # fp.write(f'TaskId: {sample["task id"]}\n')
                 fp.write(f'Human: {sample["task description"]}\n')
                 fp.write(f'Robot: ')
                 for i, step in enumerate(sample['NL steps']):

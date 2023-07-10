@@ -73,3 +73,9 @@ $ python src/misc/extract_alfred_train_samples.py
 ```bash
 $ export TRANSFORMERS_CACHE=/mnt/otherdisk/.hf_cache/
 ```
+
+* Please use `startx.py` script to run ALFRED experiment on headless servers.
+
+```bash
+$ sudo python3 alfred/scripts/startx.py 1
+```
