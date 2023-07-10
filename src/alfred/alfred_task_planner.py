@@ -7,6 +7,31 @@ from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
 
 
 class AlfredTaskPlanner(TaskPlanner):
+    alfred_objs = ['Cart', 'Potato', 'Faucet', 'Ottoman', 'CoffeeMachine', 'Candle', 'CD', 'Pan', 'Watch',
+                   'HandTowel', 'SprayBottle', 'BaseballBat', 'CellPhone', 'Kettle', 'Mug', 'StoveBurner', 'Bowl',
+                   'Toilet', 'DiningTable', 'Spoon', 'TissueBox', 'Shelf', 'Apple', 'TennisRacket', 'SoapBar',
+                   'Cloth', 'Plunger', 'FloorLamp', 'ToiletPaperHanger', 'CoffeeTable', 'Spatula', 'Plate', 'Bed',
+                   'Glassbottle', 'Knife', 'Tomato', 'ButterKnife', 'Dresser', 'Microwave', 'CounterTop',
+                   'GarbageCan', 'WateringCan', 'Vase', 'ArmChair', 'Safe', 'KeyChain', 'Pot', 'Pen', 'Cabinet',
+                   'Desk', 'Newspaper', 'Drawer', 'Sofa', 'Bread', 'Book', 'Lettuce', 'CreditCard', 'AlarmClock',
+                   'ToiletPaper', 'SideTable', 'Fork', 'Box', 'Egg', 'DeskLamp', 'Ladle', 'WineBottle', 'Pencil',
+                   'Laptop', 'RemoteControl', 'BasketBall', 'DishSponge', 'Cup', 'SaltShaker', 'PepperShaker',
+                   'Pillow', 'Bathtub', 'SoapBottle', 'Statue', 'Fridge', 'Sink']
+    alfred_pick_obj = ['KeyChain', 'Potato', 'Pot', 'Pen', 'Candle', 'CD', 'Pan', 'Watch', 'Newspaper', 'HandTowel',
+                       'SprayBottle', 'BaseballBat', 'Bread', 'CellPhone', 'Book', 'Lettuce', 'CreditCard', 'Mug',
+                       'AlarmClock', 'Kettle', 'ToiletPaper', 'Bowl', 'Fork', 'Box', 'Egg', 'Spoon', 'TissueBox',
+                       'Apple', 'TennisRacket', 'Ladle', 'WineBottle', 'Cloth', 'Plunger', 'SoapBar', 'Pencil',
+                       'Laptop', 'RemoteControl', 'BasketBall', 'DishSponge', 'Cup', 'Spatula', 'SaltShaker',
+                       'Plate', 'PepperShaker', 'Pillow', 'Glassbottle', 'SoapBottle', 'Knife', 'Statue', 'Tomato',
+                       'ButterKnife', 'WateringCan', 'Vase']
+    alfred_open_obj = ['Safe', 'Laptop', 'Fridge', 'Box', 'Microwave', 'Cabinet', 'Drawer']
+    alfred_slice_obj = ['Potato', 'Lettuce', 'Tomato', 'Apple', 'Bread']
+    alfred_toggle_obj = ['Microwave', 'DeskLamp', 'FloorLamp', 'Faucet']
+    alfred_recep = ['ArmChair', 'Safe', 'Cart', 'Ottoman', 'Pot', 'CoffeeMachine', 'Desk', 'Cabinet', 'Pan',
+                    'Drawer', 'Sofa', 'Mug', 'StoveBurner', 'SideTable', 'Toilet', 'Bowl', 'Box', 'DiningTable',
+                    'Shelf', 'ToiletPaperHanger', 'CoffeeTable', 'Cup', 'Plate', 'Bathtub', 'Bed', 'Dresser',
+                    'Fridge', 'Microwave', 'CounterTop', 'Sink', 'GarbageCan']
+
     def init_prompt(self, prefix, example_file_path, num_examples, splitter):
         # load examples
         examples = defaultdict(list)
@@ -48,38 +73,13 @@ class AlfredTaskPlanner(TaskPlanner):
         return prompt
 
     def init_skill_set(self):
-        alfred_objs = ['Cart', 'Potato', 'Faucet', 'Ottoman', 'CoffeeMachine', 'Candle', 'CD', 'Pan', 'Watch',
-                       'HandTowel', 'SprayBottle', 'BaseballBat', 'CellPhone', 'Kettle', 'Mug', 'StoveBurner', 'Bowl',
-                       'Toilet', 'DiningTable', 'Spoon', 'TissueBox', 'Shelf', 'Apple', 'TennisRacket', 'SoapBar',
-                       'Cloth', 'Plunger', 'FloorLamp', 'ToiletPaperHanger', 'CoffeeTable', 'Spatula', 'Plate', 'Bed',
-                       'Glassbottle', 'Knife', 'Tomato', 'ButterKnife', 'Dresser', 'Microwave', 'CounterTop',
-                       'GarbageCan', 'WateringCan', 'Vase', 'ArmChair', 'Safe', 'KeyChain', 'Pot', 'Pen', 'Cabinet',
-                       'Desk', 'Newspaper', 'Drawer', 'Sofa', 'Bread', 'Book', 'Lettuce', 'CreditCard', 'AlarmClock',
-                       'ToiletPaper', 'SideTable', 'Fork', 'Box', 'Egg', 'DeskLamp', 'Ladle', 'WineBottle', 'Pencil',
-                       'Laptop', 'RemoteControl', 'BasketBall', 'DishSponge', 'Cup', 'SaltShaker', 'PepperShaker',
-                       'Pillow', 'Bathtub', 'SoapBottle', 'Statue', 'Fridge', 'Sink']
-        alfred_pick_obj = ['KeyChain', 'Potato', 'Pot', 'Pen', 'Candle', 'CD', 'Pan', 'Watch', 'Newspaper', 'HandTowel',
-                           'SprayBottle', 'BaseballBat', 'Bread', 'CellPhone', 'Book', 'Lettuce', 'CreditCard', 'Mug',
-                           'AlarmClock', 'Kettle', 'ToiletPaper', 'Bowl', 'Fork', 'Box', 'Egg', 'Spoon', 'TissueBox',
-                           'Apple', 'TennisRacket', 'Ladle', 'WineBottle', 'Cloth', 'Plunger', 'SoapBar', 'Pencil',
-                           'Laptop', 'RemoteControl', 'BasketBall', 'DishSponge', 'Cup', 'Spatula', 'SaltShaker',
-                           'Plate', 'PepperShaker', 'Pillow', 'Glassbottle', 'SoapBottle', 'Knife', 'Statue', 'Tomato',
-                           'ButterKnife', 'WateringCan', 'Vase']
-        alfred_open_obj = ['Safe', 'Laptop', 'Fridge', 'Box', 'Microwave', 'Cabinet', 'Drawer']
-        alfred_slice_obj = ['Potato', 'Lettuce', 'Tomato', 'Apple', 'Bread']
-        alfred_toggle_obj = ['Microwave', 'DeskLamp', 'FloorLamp', 'Faucet']
-        alfred_recep = ['ArmChair', 'Safe', 'Cart', 'Ottoman', 'Pot', 'CoffeeMachine', 'Desk', 'Cabinet', 'Pan',
-                        'Drawer', 'Sofa', 'Mug', 'StoveBurner', 'SideTable', 'Toilet', 'Bowl', 'Box', 'DiningTable',
-                        'Shelf', 'ToiletPaperHanger', 'CoffeeTable', 'Cup', 'Plate', 'Bathtub', 'Bed', 'Dresser',
-                        'Fridge', 'Microwave', 'CounterTop', 'Sink', 'GarbageCan']
-
         # convert ithor names to natural words
-        alfred_objs = [ithor_name_to_natural_word(w) for w in alfred_objs]
-        alfred_pick_obj = [ithor_name_to_natural_word(w) for w in alfred_pick_obj]
-        alfred_open_obj = [ithor_name_to_natural_word(w) for w in alfred_open_obj]
-        alfred_slice_obj = [ithor_name_to_natural_word(w) for w in alfred_slice_obj]
-        alfred_toggle_obj = [ithor_name_to_natural_word(w) for w in alfred_toggle_obj]
-        alfred_recep = [ithor_name_to_natural_word(w) for w in alfred_recep]
+        alfred_objs = [ithor_name_to_natural_word(w) for w in self.alfred_objs]
+        alfred_pick_obj = [ithor_name_to_natural_word(w) for w in self.alfred_pick_obj]
+        alfred_open_obj = [ithor_name_to_natural_word(w) for w in self.alfred_open_obj]
+        alfred_slice_obj = [ithor_name_to_natural_word(w) for w in self.alfred_slice_obj]
+        alfred_toggle_obj = [ithor_name_to_natural_word(w) for w in self.alfred_toggle_obj]
+        alfred_recep = [ithor_name_to_natural_word(w) for w in self.alfred_recep]
 
         # make skill sets
         skills = ['done']
