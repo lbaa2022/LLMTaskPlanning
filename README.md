@@ -14,8 +14,15 @@ We recommends using a virtual environment.
 $ conda create -n {env_name} python=3.8
 $ conda activate {env_name}
 ```
-Install PyTorch (>=1.11.0) first (see https://pytorch.org/get-started/locally/),
-then install python packages in `requirements.txt`.
+
+Install PyTorch (>=1.11.0) first (see https://pytorch.org/get-started/locally/).
+
+```bash
+# exemplary command for PyTorch 1.13.0 with CUDA 11.6
+$ pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+```
+
+Then, install python packages in `requirements.txt`.
 
 ```bash
 $ pip install -r requirements.txt
