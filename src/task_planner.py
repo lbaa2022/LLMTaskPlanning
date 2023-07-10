@@ -5,7 +5,8 @@ from torch.nn import CrossEntropyLoss
 
 class TaskPlanner:
     def __init__(self, cfg):
-        self.device = cfg.planner.device  # TODO: use accelerate for multi-gpu
+        self.cfg = cfg
+        self.device = cfg.planner.device
         self.max_steps = cfg.planner.max_steps
         self.model_name = cfg.planner.model_name
         self.scoring_batch_size = cfg.planner.scoring_batch_size
@@ -15,15 +16,26 @@ class TaskPlanner:
         
         ### Load pre-trained model
         print(f"LLM and tokenizer loading: {self.model_name}")
+
+        model_args = {'pretrained_model_name_or_path': self.model_name}
+        if cfg.planner.use_accelerate_device_map:
+            model_args['device_map'] = "auto"
+            if cfg.planner.load_in_8bit:
+                model_args['load_in_8bit'] = True
+        else:
+            model_args['torch_dtype'] = torch.float16
+
         if "EleutherAI/gpt" in self.model_name or "facebook/opt" in self.model_name:
-            self.model = AutoModelForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+            self.model = AutoModelForCausalLM.from_pretrained(**model_args)
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         elif "alpaca" in self.model_name or "llama" in self.model_name:
-            self.model = LlamaForCausalLM.from_pretrained(self.model_name, torch_dtype=torch.float16)
+            self.model = LlamaForCausalLM.from_pretrained(**model_args)
             self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
         else:
             raise NotImplementedError()
-        self.model = self.model.to(self.device)
+
+        if not cfg.planner.use_accelerate_device_map:
+            self.model = self.model.to(self.device)
         self.model.eval()
         self.tokenizer.pad_token_id = 0
         print(f"End loading\n")
@@ -50,7 +62,9 @@ class TaskPlanner:
     def score(self, prompt, skill_set):
         scores = {}
         batch_skill_set_list = [skill_set[chunk:chunk + self.scoring_batch_size] for chunk in range(0, len(skill_set), self.scoring_batch_size)]
-        prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
+        prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True)
+        if not self.cfg.planner.use_accelerate_device_map:
+            prompt_tokens = prompt_tokens.to(self.device)
         prompt_len = prompt_tokens.attention_mask[0].sum().item()
         
         for batch_skill_set in batch_skill_set_list:
@@ -64,7 +78,9 @@ class TaskPlanner:
             if self.fast_mode:
                 with torch.no_grad():
                     prompt_output = self.model(**prompt_tokens, use_cache=True)
-                    skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
+                    skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False, return_tensors="pt", padding=True)
+                    if not self.cfg.planner.use_accelerate_device_map:
+                        skill_tokens = skill_tokens.to(self.device)
                     concat_attention_mask = torch.cat((prompt_tokens.attention_mask.repeat(size_B, 1), skill_tokens.attention_mask), dim=1)
                     batch_past_key_values = self.duplicate_past_key_values(prompt_output.past_key_values, size_B)
                     
@@ -78,7 +94,9 @@ class TaskPlanner:
                     attention_mask = skill_tokens.attention_mask
             else:
                 with torch.no_grad():
-                    sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt", padding=True).to(self.device)
+                    sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt", padding=True)
+                    if not self.cfg.planner.use_accelerate_device_map:
+                        sentence_tokens = sentence_tokens.to(self.device)
                     output = self.model(sentence_tokens.input_ids, attention_mask=sentence_tokens.attention_mask, return_dict=True)
                     logits = output.logits[:, prompt_len-1:-1]
                     labels = sentence_tokens.input_ids[:, prompt_len:]

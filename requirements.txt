@@ -13,5 +13,7 @@ opencv-python
 networkx
 transformers==4.30.2
 accelerate==0.20.3
+bitsandbytes
 scipy
 hydra-core
+Pillow==9.5.0
