@@ -107,7 +107,7 @@ def convert_action_to_nl_skill(action, args):
     return steps
 
 
-def list_tasks():
+def export_train_examples(export=True, export_text_samples=True):
     tasks = load_tasks('train')
     selected_samples = []
 
@@ -118,8 +118,9 @@ def list_tasks():
         print('---------------------------------------------')
         print()
 
-        # sampling
-        samples = random.sample(tasks[key], 10)
+        samples = tasks[key]  # all samples
+        # samples = random.sample(tasks[key], 10)  # sampling
+
         for e in samples:
             print('Task id:', e['task_id'])
             print('Task desc:', e['turk_annotations']['anns'][0]['task_desc'])
@@ -149,11 +150,20 @@ def list_tasks():
                 })
             print()
 
-    if True:
-        with open('resource/_examples_for_prompt.json', 'w') as fp:
+    if export:
+        with open('resource/alfred_examples_for_prompt.json', 'w') as fp:
             json.dump(selected_samples, fp, indent=4)
+
+    if export_text_samples:
+        with open(f'resource/alfred_train_text_samples.txt', 'w') as fp:
+            for sample in selected_samples:
+                fp.write(f'Human: {sample["task description"]}\n')
+                fp.write(f'Robot: ')
+                for i, step in enumerate(sample['NL steps']):
+                    fp.write(f"{i+1}. {step}, ")
+                fp.write(f"{i+2}. done.\n")
 
 
 if __name__ == '__main__':
     # list_actions_objs()
-    list_tasks()
+    export_train_examples(True, True)
