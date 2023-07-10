@@ -21,5 +21,6 @@ def main(cfg):
         assert False
     evaluator.evaluate()
 
+
 if __name__ == "__main__":
     main()

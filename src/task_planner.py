@@ -11,6 +11,7 @@ class TaskPlanner:
         self.scoring_batch_size = cfg.planner.scoring_batch_size
         self.score_function = cfg.planner.score_function
         self.fast_mode = cfg.planner.fast_mode
+        self.use_action_failure_msg = cfg.planner.use_action_failure_msg
         
         ### Load pre-trained model
         print(f"LLM and tokenizer loading: {self.model_name}")
@@ -157,7 +158,7 @@ class TaskPlanner:
         best_step = best_step.strip()
 
         print('---------------------------------------')
-        print(prompt)
+        # print(prompt)
         print(f'{len(prev_steps) + 1}.{best_step}')
         print('---------------------------------------')
 
