@@ -47,3 +47,13 @@ $ python evaluate.py --config-name='config_alfred' planner.model='EleutherAI/gpt
 $ cd {project_root}
 $ ./script/icra_exp1_benchmark_wah.sh
 ```
+
+
+## Extract train samples from ALFRED for language model finetuning
+
+Make sure you have preprocessed data (run ALFRED benchmarking at least once).
+
+```bash
+$ python src/misc/extract_alfred_train_samples.py
+```
+
