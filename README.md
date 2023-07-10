@@ -32,13 +32,14 @@ $ sh download_data.sh json
 ## Benchmarking on ALFRED
 
 ```bash
-$ python src/evaluate.py --config-name='config_alfred'
+$ python src/evaluate.py --config-name=config_alfred
 ```
 
 You can override the configuration. We used [Hydra](https://hydra.cc/) for configuration management.
 
 ```bash
-$ python evaluate.py --config-name='config_alfred' planner.model='EleutherAI/gpt-neo-125M'
+$ python evaluate.py --config-name=config_alfred planner.model=EleutherAI/gpt-neo-125M
+$ python evaluate.py --config-name=config_alfred alfred.x_display='1'
 ```
 
 
