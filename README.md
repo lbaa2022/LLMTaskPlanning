@@ -58,3 +58,11 @@ Make sure you have preprocessed data (run ALFRED benchmarking at least once).
 $ python src/misc/extract_alfred_train_samples.py
 ```
 
+
+## Tips
+
+* If you're running out of disk space for Huggingface models, you can set the cache folder to be in another disk.
+
+```bash
+$ export TRANSFORMERS_CACHE=/mnt/otherdisk/.hf_cache/
+```
