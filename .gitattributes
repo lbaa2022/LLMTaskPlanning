@@ -1,0 +1,2 @@
+resource/alfred_train_text_samples.txt filter=lfs diff=lfs merge=lfs -text
+resource/alfred_examples_for_prompt.json filter=lfs diff=lfs merge=lfs -text
