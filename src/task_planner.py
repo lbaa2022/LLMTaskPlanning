@@ -18,12 +18,11 @@ class TaskPlanner:
         print(f"LLM and tokenizer loading: {self.model_name}")
 
         model_args = {'pretrained_model_name_or_path': self.model_name}
+        model_args['torch_dtype'] = torch.float16
         if cfg.planner.use_accelerate_device_map:
             model_args['device_map'] = "auto"
             if cfg.planner.load_in_8bit:
                 model_args['load_in_8bit'] = True
-        else:
-            model_args['torch_dtype'] = torch.float16
 
         if "EleutherAI/gpt" in self.model_name or "facebook/opt" in self.model_name:
             self.model = AutoModelForCausalLM.from_pretrained(**model_args)
