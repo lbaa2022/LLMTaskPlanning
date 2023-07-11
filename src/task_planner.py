@@ -106,7 +106,7 @@ class TaskPlanner:
                 logits = logits.reshape([size_B * size_L, size_C])
                 labels = labels.reshape([size_B * size_L])
                 loss_fn = CrossEntropyLoss(reduction='none')
-                loss = loss_fn(logits, labels)
+                loss = loss_fn(logits.float(), labels.long())
                 loss = loss.reshape([size_B, size_L])
                 skill_len = attention_mask.count_nonzero(axis=1)
                 if self.score_function == 'sum':
