@@ -49,7 +49,7 @@ def list_actions_objs():
 def load_tasks(split='train'):
     base_path = Path(data_path) / split
     tasks = defaultdict(list)
-    for path in base_path.glob("**/traj_data.json"):
+    for path in sorted(base_path.glob("**/traj_data.json")):
         with open(path) as f:
             data = json.load(f)
         # print(data)
@@ -137,7 +137,7 @@ def export_train_examples(export=True, export_text_samples=True):
     tasks = load_tasks('train')
     selected_samples = []
 
-    for key in tasks.keys():
+    for key in sorted(tasks.keys()):
         print('---------------------------------------------')
         print(key)
         print('N=', len(tasks[key]))
