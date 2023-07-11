@@ -8,32 +8,39 @@ You can use WSL-Ubuntu on Windows 10/11.
 
 ## Install
 
-We recommends using a virtual environment.
+1. Install and setup `git-lfs`.
+    ```bash
+    $ sudo apt-get install git-lfs
+    $ git lfs install
+    ```
 
-```bash
-$ conda create -n {env_name} python=3.8
-$ conda activate {env_name}
-```
+2. Clone the whole repo.
+    ```bash
+    $ git clone {repo_url}
+    ```
 
-Install PyTorch (>=1.11.0) first (see https://pytorch.org/get-started/locally/).
+3. Setup a virtual environment.
+    ```bash
+    $ conda create -n {env_name} python=3.8
+    $ conda activate {env_name}
+    ```
 
-```bash
-# exemplary command for PyTorch 1.13.0 with CUDA 11.6
-$ pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
-```
+4. Install PyTorch (>=1.11.0) first (see https://pytorch.org/get-started/locally/).
+    ```bash
+    # exemplary command for PyTorch 1.13.0 with CUDA 11.6
+    $ pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    ```
 
-Then, install python packages in `requirements.txt`.
+5. Install python packages in `requirements.txt`.
+    ```bash
+    $ pip install -r requirements.txt
+    ```
 
-```bash
-$ pip install -r requirements.txt
-```
-
-Download ALFRED dataset.
-
-```bash
-$ cd alfred/data
-$ sh download_data.sh json
-```
+6. Download ALFRED dataset.
+    ```bash
+    $ cd alfred/data
+    $ sh download_data.sh json
+    ```
 
 
 ## Benchmarking on ALFRED
@@ -66,16 +73,23 @@ $ python src/misc/extract_alfred_train_samples.py
 ```
 
 
-## Tips
+## FAQ
 
-* If you're running out of disk space for Huggingface models, you can set the cache folder to be in another disk.
+* Running out of disk space for Huggingface models
+  * You can set the cache folder to be in another disk.
+    ```bash
+    $ export TRANSFORMERS_CACHE=/mnt/otherdisk/.hf_cache/
+    ```
 
-```bash
-$ export TRANSFORMERS_CACHE=/mnt/otherdisk/.hf_cache/
-```
+* I have encountered 'cannot find X server with xdpyinfo' in running ALFRED experiments.
+  * Please try another x_display number (e.g., '1') in the config file.
+    ```bash
+    $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
+    ```
+
 
 * Please use `startx.py` script to run ALFRED experiment on headless servers.
 
-```bash
-$ sudo python3 alfred/scripts/startx.py 1
-```
+    ```bash
+    $ sudo python3 alfred/scripts/startx.py 1
+    ```
