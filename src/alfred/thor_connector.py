@@ -55,7 +55,6 @@ class ThorConnector(ThorEnv):
         return self.reachable_positions[selected]
 
     def llm_skill_interact(self, instruction: str):
-        print(instruction)
         # todo: parsing 없애자. action type 이 주어진다고 가정?
         if instruction.startswith("find "):
             obj_name = instruction.replace('find a ', '').replace('find an ', '')
@@ -93,7 +92,11 @@ class ThorConnector(ThorEnv):
             assert False, 'instruction not supported'
 
         if not self.last_event.metadata['lastActionSuccess']:
-            log.warning(f"action failed: {self.last_event.metadata['errorMessage']}")
+            log.warning(f"llm_skill_interact failed")
+            log.warning(f"errorMessage: {self.last_event.metadata['errorMessage']}")
+            log.warning(f"returned msg: {ret}")
+        else:
+            log.info(f"Last action succeded")
 
         ret_dict = {
             'action': instruction,
@@ -107,7 +110,7 @@ class ThorConnector(ThorEnv):
         objects = self.last_event.metadata['objects']
         action_name = 'object navigation'
         ret_msg = ''
-        print(f'{action_name} ({target_obj})')
+        log.info(f'{action_name} ({target_obj})')
 
         # get the object location
         obj_idx = -1
@@ -128,7 +131,6 @@ class ThorConnector(ThorEnv):
 
         if obj_idx == -1:
             ret_msg = f'Cannot find {target_obj}'
-            print(ret_msg)
         else:
             # teleport sometimes fails even with reachable positions. if fails, repeat with the next closest reachable positions.
             n_attempts = 10
@@ -161,8 +163,7 @@ class ThorConnector(ThorEnv):
                                   rotation=rot_angle, horizon=-hor_angle))
 
                 if not self.last_event.metadata['lastActionSuccess']:
-                    log.warning(f"TeleportFull action failed: {self.last_event.metadata['errorMessage']}")
-                    print('try again')
+                    log.warning(f"TeleportFull action failed: {self.last_event.metadata['errorMessage']}, trying again...")
                 else:
                     teleport_success = True
                     break
@@ -191,7 +192,7 @@ class ThorConnector(ThorEnv):
     def pick(self, obj_name):
         obj_id, obj_data = self.get_obj_id_from_name(obj_name, only_pickupable=True)
         ret_msg = ''
-        print(f'pick {obj_id}')
+        log.info(f'pick {obj_id}')
 
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to pick up'
@@ -206,7 +207,6 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"PickupObject action failed: {self.last_event.metadata['errorMessage']}")
                 ret_msg = f'Cannot pick up {obj_name}'
 
         return ret_msg
@@ -223,7 +223,6 @@ class ThorConnector(ThorEnv):
 
         if not holding_obj_id:
             ret_msg = f'Robot is not holding any object'
-            log.warning(ret_msg)
             return ret_msg
 
         for i in range(2):
@@ -234,10 +233,9 @@ class ThorConnector(ThorEnv):
 
             if not recep_id:
                 ret_msg = f'Cannot find {receptacle_name}'
-                log.warning(ret_msg)
                 break
 
-            print(f'put {holding_obj_id} on {recep_id}')
+            log.info(f'put {holding_obj_id} on {recep_id}')
 
             # this somehow make putobject success in some cases (for instance, put the book on the sofa).
             # todo: investigate this
@@ -254,9 +252,8 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}")
+                log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}, trying again...")
                 ret_msg = f'Putting the object on {receptacle_name} failed'
-                print('try again')
             else:
                 ret_msg = ''
                 break
@@ -264,6 +261,7 @@ class ThorConnector(ThorEnv):
         return ret_msg
 
     def drop(self):
+        log.info(f'drop')
         ret_msg = ''
         super().step(dict(
             action="DropHandObject",
@@ -271,7 +269,6 @@ class ThorConnector(ThorEnv):
         ))
 
         if not self.last_event.metadata['lastActionSuccess']:
-            log.warning(f"DropHandObject action failed: {self.last_event.metadata['errorMessage']}")
             ret_msg = f"Drop action failed"
         else:
             ret_msg = ''
@@ -279,6 +276,7 @@ class ThorConnector(ThorEnv):
         return ret_msg
 
     def open(self, obj_name):
+        log.info(f'open {obj_name}')
         ret_msg = ''
         obj_id, _ = self.get_obj_id_from_name(obj_name)
 
@@ -292,9 +290,8 @@ class ThorConnector(ThorEnv):
                 ))
 
                 if not self.last_event.metadata['lastActionSuccess']:
-                    log.warning(f"OpenObject action failed: {self.last_event.metadata['errorMessage']}")
+                    log.warning(f"OpenObject action failed: {self.last_event.metadata['errorMessage']}, moving backward and trying again...")
                     ret_msg = f"Open action failed"
-                    print('move backward and try again')
                     super().step(dict(action="MoveBack"))
                 else:
                     ret_msg = ''
@@ -303,6 +300,7 @@ class ThorConnector(ThorEnv):
         return ret_msg
 
     def close(self, obj_name):
+        log.info(f'close {obj_name}')
         ret_msg = ''
         obj_id, _ = self.get_obj_id_from_name(obj_name)
         if obj_id is None:
@@ -314,12 +312,12 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"CloseObject action failed: {self.last_event.metadata['errorMessage']}")
                 ret_msg = f"Close action failed"
 
         return ret_msg
 
     def toggleon(self, obj_name):
+        log.info(f'toggle on {obj_name}')
         ret_msg = ''
         obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True)
         if obj_id is None:
@@ -331,12 +329,12 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"ToggleObjectOn action failed: {self.last_event.metadata['errorMessage']}")
                 ret_msg = f"Turn on action failed"
 
         return ret_msg
 
     def toggleoff(self, obj_name):
+        log.info(f'toggle off {obj_name}')
         ret_msg = ''
         obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True)
         if obj_id is None:
@@ -348,12 +346,12 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"ToggleObjectOff action failed: {self.last_event.metadata['errorMessage']}")
                 ret_msg = f"Turn off action failed"
 
         return ret_msg
 
     def slice(self, obj_name):
+        log.info(f'slice {obj_name}')
         ret_msg = ''
         obj_id, _ = self.get_obj_id_from_name(obj_name)
         if obj_id is None:
@@ -365,7 +363,6 @@ class ThorConnector(ThorEnv):
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"SliceObject action failed: {self.last_event.metadata['errorMessage']}")
                 ret_msg = f"Slice action failed"
 
         return ret_msg

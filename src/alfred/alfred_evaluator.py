@@ -114,14 +114,13 @@ class AlfredEvaluator(Evaluator):
             f.write(planner.prompt)
 
         # run
-        for task in tqdm(tasks):
+        for i, task in tqdm(enumerate(tasks)):
             try:
                 log.info(task)
                 traj_data = load_task_json(task)
                 r_idx = task['repeat_idx']
-                log.info(f"{task['task']}, {r_idx}")
-                log.info("Evaluating: %s" % (traj_data['root']))
-                result = self.evaluate_task(env, traj_data, r_idx, model_args, planner, save_path)
+                log.info(f"Evaluating ({i+1}/{len(tasks)}): {traj_data['root']}")
+                result = self.evaluate_task(env, traj_data, r_idx, model_args, planner, save_path, log_prompt=(i==0))
                 results.append(result)
 
             except Exception as e:
@@ -131,7 +130,7 @@ class AlfredEvaluator(Evaluator):
 
         return results
     
-    def evaluate_task(self, env, traj_data, r_idx, model_args, planner, save_path):
+    def evaluate_task(self, env, traj_data, r_idx, model_args, planner, save_path, log_prompt=False):
         # setup scene
         scene_num = traj_data['scene']['scene_num']
         object_poses = traj_data['scene']['object_poses']
@@ -160,18 +159,19 @@ class AlfredEvaluator(Evaluator):
         prev_action_msg = []
         while not done:
             # find next step
-            step = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
+            step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
             if step is None:
                 log.info("\tmax step reached")
                 break
 
+            if log_prompt:
+                log.info(prompt)
+            log.info(f'{len(prev_steps) + 1}. {step}')
             prev_steps.append(step)
-            log.info(step)
 
             if step in ['done', 'done.', 'done.\n']:
                 done = True
                 prev_action_msg.append('')
-                log.info("\tpredicted STOP")
                 break
 
             # execute
