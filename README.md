@@ -25,10 +25,10 @@ You can use WSL-Ubuntu on Windows 10/11.
     $ conda activate {env_name}
     ```
 
-4. Install PyTorch (>=1.11.0) first (see https://pytorch.org/get-started/locally/).
+4. Install PyTorch (2.0.0) first (see https://pytorch.org/get-started/locally/).
     ```bash
-    # exemplary command for PyTorch 1.13.0 with CUDA 11.6
-    $ pip install torch==1.13.1+cu116 torchvision==0.14.1+cu116 --extra-index-url https://download.pytorch.org/whl/cu116
+    # exemplary install command for PyTorch 2.0.0 with CUDA 11.7
+    $ pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 --index-url https://download.pytorch.org/whl/cu117
     ```
 
 5. Install python packages in `requirements.txt`.
