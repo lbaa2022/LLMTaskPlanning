@@ -114,7 +114,7 @@ class AlfredEvaluator(Evaluator):
             f.write(planner.prompt)
 
         # run
-        for i, task in tqdm(enumerate(tasks)):
+        for i, task in enumerate(tqdm(tasks)):
             try:
                 log.info(task)
                 traj_data = load_task_json(task)
