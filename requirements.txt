@@ -1,5 +1,5 @@
 ai2thor==2.1.0
-torch>=1.11.0
+torch==2.0.0
 
 Flask==1.1.2
 Werkzeug==1.0.1
@@ -17,3 +17,4 @@ bitsandbytes
 scipy
 hydra-core
 Pillow==9.5.0
+einops
