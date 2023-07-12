@@ -174,12 +174,7 @@ class TaskPlanner:
         best_step = results[0][0]
         best_step = best_step.strip()
 
-        print('---------------------------------------')
-        # print(prompt)
-        print(f'{len(prev_steps) + 1}.{best_step}')
-        print('---------------------------------------')
-
-        return best_step
+        return best_step, prompt
 
     def duplicate_past_key_values(self, past_key_values, batch_size):
         batch_past_key_values = []

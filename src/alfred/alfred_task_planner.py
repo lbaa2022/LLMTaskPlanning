@@ -1,10 +1,12 @@
 import json
 import random
 from collections import defaultdict
+import logging
 
 from src.task_planner import TaskPlanner
 from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
 
+log = logging.getLogger(__name__)
 
 class AlfredTaskPlanner(TaskPlanner):
     alfred_objs = ['Cart', 'Potato', 'Faucet', 'Ottoman', 'CoffeeMachine', 'Candle', 'CD', 'Pan', 'Watch',
@@ -111,6 +113,7 @@ class AlfredTaskPlanner(TaskPlanner):
         # add a leading whitespace
         skills = [' ' + c for c in skills]
 
-        print('# of skills:', len(skills))
+        log.info(f'# of skills: {len(skills)}')
+        log.info(skills)
 
         return skills
