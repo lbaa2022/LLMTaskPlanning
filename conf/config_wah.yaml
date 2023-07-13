@@ -15,6 +15,8 @@ planner:
   scoring_batch_size: 8
   score_function: 'sum'
   fast_mode: False
+  use_action_failure_msg: False
+  use_accelerate_device_map: False
 
 prompt:
   num_examples: 1
@@ -37,9 +39,21 @@ environment:
   # base_port:
   # port_id:
   # executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "0"}
+  executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64"}
   recording_options: {
-    'recording': False, 
-    'output_folder': '/home/user/Projects/llm_plan/LMTaskPlanning/figs/230327', 
+    'recording': True, 
+    'output_folder': '../../../figure', #{LLMTaskPlanner directory}/figure
     'file_name_prefix': 'Test', 
     'cameras': ['PERSON_FROM_BACK']
   }
+
+  # max_episode_length: 120
+  # base_port: 8080
+  # port_id: 0
+  # executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64"}
+  # recording_options: {
+  #   'recording': True, 
+  #   'output_folder': '/home/etri/code/LLMTaskPlanning/test', 
+  #   'file_name_prefix': 'Test', 
+  #   'cameras': ['PERSON_FROM_BACK']
+  # }

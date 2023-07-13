@@ -162,7 +162,7 @@ class TaskPlanner:
 
     def plan_step_by_step(self, query, prev_steps=(), prev_msgs=()):
         if len(prev_steps) >= self.max_steps:
-            return None
+            return None, None
 
         prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1.'
 
