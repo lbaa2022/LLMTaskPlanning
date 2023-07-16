@@ -47,9 +47,12 @@ class AlfredTaskPlanner(TaskPlanner):
         task_types = ['pick_and_place_simple', 'look_at_obj_in_light', 'pick_two_obj_and_place',
                       'pick_cool_then_place_in_recep',
                       'pick_clean_then_place_in_recep', 'pick_and_place_with_movable_recep']
+        num_examples_max = 10
+        assert num_examples < num_examples_max
         for k in task_types:
             assert k in examples.keys()
-            examples_selected.extend(random.sample(examples[k], num_examples))
+            candidates = random.sample(examples[k], num_examples_max)  # sample a fixed random set for reproducibility
+            examples_selected.extend(candidates[:num_examples])
 
         # make prompt string
         sentence_ending = '\n'
