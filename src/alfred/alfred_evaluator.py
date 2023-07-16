@@ -102,7 +102,7 @@ class AlfredEvaluator(Evaluator):
             if e['success']:
                 n_success += 1
         log.info(f'success rate: {n_success / n * 100:.2f} %')
-        log.info(f'took {(time.time() - start) / 60:.1f} mins')
+        log.info(f'elapsed: {str(datetime.timedelta(seconds=(time.time() - start)))}')
 
     def evaluate_main(self, tasks, args_dict, planner, x_display, save_path):
         results = []

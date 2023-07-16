@@ -23,15 +23,15 @@ class TaskPlanner:
             model_args['device_map'] = "auto"
             if cfg.planner.load_in_8bit:
                 model_args['load_in_8bit'] = True
+        if "starcode" in self.model_name:
+            model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
-        if "EleutherAI/gpt" in self.model_name or "facebook/opt" in self.model_name or "falcon" in self.model_name:
-            self.model = AutoModelForCausalLM.from_pretrained(**model_args)
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        elif "alpaca" in self.model_name or "llama" in self.model_name:
+        if "alpaca" in self.model_name or "llama" in self.model_name:
             self.model = LlamaForCausalLM.from_pretrained(**model_args)
             self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
         else:
-            raise NotImplementedError()
+            self.model = AutoModelForCausalLM.from_pretrained(**model_args)
+            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
         if not cfg.planner.use_accelerate_device_map:
             self.model = self.model.to(self.device)
