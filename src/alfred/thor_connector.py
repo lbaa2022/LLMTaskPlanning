@@ -96,7 +96,7 @@ class ThorConnector(ThorEnv):
             log.warning(f"errorMessage: {self.last_event.metadata['errorMessage']}")
             log.warning(f"returned msg: {ret}")
         else:
-            log.info(f"Last action succeded")
+            log.info(f"Last action succeeded")
 
         ret_dict = {
             'action': instruction,
