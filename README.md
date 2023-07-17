@@ -82,7 +82,7 @@ $ python src/misc/extract_alfred_train_samples.py
     ```
 
 * I have encountered 'cannot find X server with xdpyinfo' in running ALFRED experiments.
-  * Please try another x_display number (e.g., '1') in the config file.
+  * Please try another x_display number (this should be a string; e.g., '1') in the config file.
     ```bash
     $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
     ```
