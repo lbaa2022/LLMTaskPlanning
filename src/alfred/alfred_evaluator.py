@@ -26,7 +26,7 @@ from src.evaluator import Evaluator
 
 splits = 'alfred/data/splits/oct21.json'
 debug_executor = 0  # disable LLM planner
-font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/Ubuntu-M.ttf", 24)
+font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
 log = logging.getLogger(__name__)
 
 
@@ -177,7 +177,7 @@ class AlfredEvaluator(Evaluator):
             # execute
             step_to_execute = step
             action_ret = env.llm_skill_interact(step_to_execute)
-            imgs.append(env.write_step_on_img(t, step_to_execute))
+            imgs.append(env.write_step_on_img(t+1, step_to_execute))
             prev_action_msg.append(action_ret['message'])
 
             if not action_ret['success']:
@@ -221,8 +221,10 @@ class AlfredEvaluator(Evaluator):
 
         # write img
         widths, heights = zip(*(i.size for i in imgs))
+        left, top, right, bottom = font.getbbox('hello')
+        line_height = bottom - top
         total_width = widths[0] * 5
-        total_height = math.ceil(len(imgs) / 5) * heights[0] + 100
+        total_height = math.ceil(len(imgs) / 5) * heights[0] + line_height * 1.2
         new_im = Image.new('RGB', (total_width, total_height), color='white')
 
         # draw text
@@ -234,11 +236,9 @@ class AlfredEvaluator(Evaluator):
             draw = ImageDraw.Draw(new_im)
             y_offset = 10
             for line in lines:
-                left, top, right, bottom = font.getbbox(text)
-                height = bottom - top
                 draw.text((10, y_offset), line, font=font, fill=text_color)
-                y_offset += height
-            y_offset += height
+                y_offset += line_height
+            y_offset += line_height
         else:
             y_offset = 0
 
