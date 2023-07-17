@@ -164,7 +164,7 @@ class TaskPlanner:
         if len(prev_steps) >= self.max_steps:
             return None, None
 
-        prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1.'
+        prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1. '
 
         for i, (step, msg) in enumerate(zip(prev_steps, prev_msgs)):
             if self.use_action_failure_msg and len(msg) > 0:
