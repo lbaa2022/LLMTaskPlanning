@@ -15,7 +15,7 @@ class TaskPlanner:
         self.use_action_failure_msg = cfg.planner.use_action_failure_msg
 
         # Load pre-trained model
-        print(f"LLM and tokenizer loading: {self.model_name}")
+        print(f"Loading LLM and tokenizer: {self.model_name}")
 
         model_args = {'pretrained_model_name_or_path': self.model_name, 'trust_remote_code': True,
                       'torch_dtype': torch.float16}
@@ -37,7 +37,7 @@ class TaskPlanner:
             self.model = self.model.to(self.device)
         self.model.eval()
         self.tokenizer.pad_token_id = 0
-        print(f"End loading\n")
+        print(f"Loading done\n")
 
         # Load prompt
         self.prompt = self.init_prompt(cfg.prompt.prefix, cfg.prompt.example_file_path,
