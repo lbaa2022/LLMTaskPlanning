@@ -18,3 +18,4 @@ scipy
 hydra-core
 Pillow==9.5.0
 einops
+sentencepiece
