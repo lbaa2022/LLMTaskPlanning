@@ -224,7 +224,7 @@ class AlfredEvaluator(Evaluator):
         left, top, right, bottom = font.getbbox('hello')
         line_height = bottom - top
         total_width = widths[0] * 5
-        total_height = math.ceil(len(imgs) / 5) * heights[0] + line_height * 1.2
+        total_height = math.ceil(len(imgs) / 5) * heights[0] + int(line_height * 1.2)
         new_im = Image.new('RGB', (total_width, total_height), color='white')
 
         # draw text
