@@ -97,13 +97,16 @@ class WahEvaluator(Evaluator):
         while not done:
             ### Task planning
             step, prompt = task_planner.plan_step_by_step(nl_instruction, prev_steps, prev_action_msg)
+            ### TODO: Update skill set
+            task_planner.update_skill_set(step, task_planner.nl_obj_list)
+            
             if step is None:
                 log.info("\tmax step reached")
                 break
 
             if log_prompt:
                 log.info(prompt)
-            log.info(f'{len(prev_steps) + 1}. {step}')
+            # log.info(f'{len(prev_steps) + 1}. {step}')
             prev_steps.append(step)
             
             if step in ['done', 'done.', 'done.\n']:
@@ -115,8 +118,10 @@ class WahEvaluator(Evaluator):
             prev_action_msg.append('')
             
             ### Simualtion
-            env.step(step, step_form='nl', instance=False)
-        
+            # env.step(step, step_form='nl', instance=False)
+            possible, feedback = env.step(step, step_form='nl', instance=False)
+            log.info(f'{len(prev_steps)}. {step} ({possible})')
+            
             ### TODO: Visualization Save ################################
         
         ### Check goal
@@ -133,7 +138,7 @@ class WahEvaluator(Evaluator):
             total_num_subgoal += num_subgoal
             
         subgoal_succes_rate = total_num_subgoal_satisfied / total_num_subgoal
-        
+        # pdb.set_trace()
         ### Record results
         log_entry = {'trial': task_d['task_id'],
                     'goal_instr': nl_instruction,
