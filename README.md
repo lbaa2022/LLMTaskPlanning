@@ -58,6 +58,10 @@ $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
 
 
 ## Benchmarking on Watch-And-Help
+### Download the VirtualHome Simulator
+Download the VirtualHome simulator v2.2.2 from http://virtual-home.org/documentation/master/downloads/downloads.html#v2-2-2
+Extract it in {project_root}/virtualhome_wah/simulation/unity_simulator/
+### Benchmarking on Watch-And-Help-NL
 ```bash
 $ cd {project_root}
 $ ./script/icra_exp1_benchmark_wah.sh
