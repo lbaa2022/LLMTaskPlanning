@@ -1,12 +1,17 @@
 import time
 
-from src.alfred.eval_alfred import save_result
+import sys
+sys.path.insert(0, '.')
+sys.path.insert(0, '..')
+sys.path.insert(0, 'src')
+sys.path.insert(0, './alfred')
+
 from src.alfred.thor_connector import ThorConnector
 from src.alfred.utils import load_task_json
 
 
 def main():
-    task = {'task': 'pick_and_place_with_movable_recep-DishSponge-Pot-SinkBasin-1/trial_T20190908_103955_680867', 'repeat_idx': 1}
+    task = {'task': 'pick_clean_then_place_in_recep-SoapBar-None-Toilet-410/trial_T20190906_201106_979461', 'repeat_idx': 1}
     traj_data = load_task_json(task)
     scene_num = traj_data['scene']['scene_num']
     object_poses = traj_data['scene']['object_poses']
@@ -17,9 +22,20 @@ def main():
     env.reset('FloorPlan%d' % scene_num)
     env.restore_scene(object_poses, object_toggles, dirty_and_empty)
 
+    env.step(dict(traj_data['scene']['init_action']))
+
     instructions = [
-        'find a pot',
-        'pick up the pot'
+        'find a soap bar',
+        'pick up the soap bar',
+        'find a toilet',
+        'put down the soap bar',
+        'find a soap bar',
+        # 'find a sink',
+        # 'find a sink',
+        # 'open the fridge',
+        # 'put down the plate',
+        # 'put down the plate',
+        # 'put down the plate',
     ]
 
     imgs = []

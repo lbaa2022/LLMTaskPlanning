@@ -55,7 +55,9 @@ class ThorConnector(ThorEnv):
         return self.reachable_positions[selected]
 
     def llm_skill_interact(self, instruction: str):
-        # todo: parsing 없애자. action type 이 주어진다고 가정?
+        if not instruction.startswith("put down "):
+            self.cur_receptacle = None
+
         if instruction.startswith("find "):
             obj_name = instruction.replace('find a ', '').replace('find an ', '')
             self.cur_receptacle = obj_name
@@ -67,10 +69,14 @@ class ThorConnector(ThorEnv):
             # m = re.match(r'put down (.+) on (.+)', instruction)
             # obj = m.group(1).replace('the ', '')
             # receptacle = m.group(2).replace('the ', '')
-            m = re.match(r'put down (.+)', instruction)
-            obj = m.group(1).replace('the ', '')
-            receptacle = self.cur_receptacle
-            ret = self.put(natural_word_to_ithor_name(receptacle))
+
+            if self.cur_receptacle is None:
+                ret = self.drop()
+            else:
+                m = re.match(r'put down (.+)', instruction)
+                obj = m.group(1).replace('the ', '')
+                receptacle = self.cur_receptacle
+                ret = self.put(natural_word_to_ithor_name(receptacle))
         elif instruction.startswith("open "):
             obj_name = instruction.replace('open the ', '')
             ret = self.open(natural_word_to_ithor_name(obj_name))
@@ -173,7 +179,7 @@ class ThorConnector(ThorEnv):
 
         return ret_msg
 
-    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, get_inherited=False):
+    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, get_inherited=False, inside_receptacle_penalty=True):
         obj_id = None
         obj_data = None
         min_distance = 1e+8
@@ -184,7 +190,14 @@ class ThorConnector(ThorEnv):
                     (get_inherited is False or len(obj['objectId'].split('|')) == 5):
                 if obj["distance"] < min_distance:
                     obj_id = obj["objectId"]
-                    min_distance = obj["distance"]
+                    penalty = 0  # low priority for objects in closable receptacles such as fridge, microwave
+                    if inside_receptacle_penalty and obj['parentReceptacles']:
+                        for p in obj['parentReceptacles']:
+                            openable = get_objects_with_name_and_prop(p, 'openable', self.last_event.metadata)
+                            if len(openable) > 0:
+                                penalty = 10000
+                                break
+                    min_distance = obj["distance"] + penalty
                     obj_data = obj
 
         return obj_id, obj_data
@@ -225,37 +238,48 @@ class ThorConnector(ThorEnv):
             ret_msg = f'Robot is not holding any object'
             return ret_msg
 
-        for i in range(2):
-            if i == 0:
-                recep_id, _ = self.get_obj_id_from_name(receptacle_name)
-            else:
-                recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True)
+        halt = False
+        for j in range(2):  # look up
+            for i in range(2):  # find an inherited receptacle (e.g., basin)
+                if i == 0:
+                    recep_id, _ = self.get_obj_id_from_name(receptacle_name)
+                else:
+                    recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True)
 
-            if not recep_id:
-                ret_msg = f'Cannot find {receptacle_name}'
-                break
+                if not recep_id:
+                    ret_msg = f'Cannot find {receptacle_name}'
+                    continue
 
-            log.info(f'put {holding_obj_id} on {recep_id}')
+                log.info(f'put {holding_obj_id} on {recep_id}')
 
-            # this somehow make putobject success in some cases (for instance, put the book on the sofa).
-            # todo: investigate this
-            super().step(dict(
-                action="RotateHand",
-                x=40
-            ))
+                # look up (put action fails when a receptacle is not visible)
+                if j == 1:
+                    log.warning("Look up")
+                    super().step(dict(action="LookUp"))
+                    super().step(dict(action="LookUp"))
 
-            super().step(dict(
-                action="PutObject",
-                objectId=holding_obj_id,
-                receptacleObjectId=recep_id,
-                forceAction=True
-            ))
+                # this somehow make putobject success in some cases (for instance, put the book on the sofa).
+                # todo: investigate this more
+                super().step(dict(
+                    action="RotateHand",
+                    x=40
+                ))
 
-            if not self.last_event.metadata['lastActionSuccess']:
-                log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}, trying again...")
-                ret_msg = f'Putting the object on {receptacle_name} failed'
-            else:
-                ret_msg = ''
+                super().step(dict(
+                    action="PutObject",
+                    objectId=holding_obj_id,
+                    receptacleObjectId=recep_id,
+                    forceAction=True
+                ))
+
+                if not self.last_event.metadata['lastActionSuccess']:
+                    log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}, trying again...")
+                    ret_msg = f'Putting the object on {receptacle_name} failed'
+                else:
+                    ret_msg = ''
+                    halt = True
+                    break
+            if halt:
                 break
 
         return ret_msg
