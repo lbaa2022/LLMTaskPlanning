@@ -10,3 +10,4 @@ scoring_batch_size: 8
 score_function: 'sum'
 fast_mode: True
 use_action_failure_msg: False  # NOTE: this uses a pre-written prompt
+hf_auth_token: ''  # NOTE: this is required for downloading the private model from HuggingFace

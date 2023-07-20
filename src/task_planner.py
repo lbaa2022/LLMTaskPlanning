@@ -23,8 +23,7 @@ class TaskPlanner:
             model_args['device_map'] = "auto"
             if cfg.planner.load_in_8bit:
                 model_args['load_in_8bit'] = True
-        if "starcode" in self.model_name:
-            model_args['use_auth_token'] = cfg.planner.hf_auth_token
+        model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
         if "alpaca" in self.model_name or "llama" in self.model_name:
             self.model = LlamaForCausalLM.from_pretrained(**model_args)
