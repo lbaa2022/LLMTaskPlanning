@@ -98,7 +98,11 @@ class WahEnv(BaseUnityEnvironment):
                                                         find_solution=False,
                                                         recording=False,
                                                         skip_animation=True)
-        
+            self.changed_graph = True
+        else:
+            self.changed_graph = False
+            
+        return possible, feedback
             # if not success:
             #     print(message) 
             #     # print(script_list)
