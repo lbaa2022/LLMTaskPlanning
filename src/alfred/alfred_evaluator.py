@@ -222,7 +222,7 @@ class AlfredEvaluator(Evaluator):
         # write img
         widths, heights = zip(*(i.size for i in imgs))
         total_width = widths[0] * 5
-        textbox_height = 80  # max two lines
+        textbox_height = 70  # max two lines
         total_height = math.ceil(len(imgs) / 5) * heights[0] + textbox_height
         new_im = Image.new('RGB', (total_width, total_height), color='white')
 
@@ -231,9 +231,9 @@ class AlfredEvaluator(Evaluator):
             text = 'Instruction: ' + result_dict['goal_instr']
             text_color = (0, 0, 0)  # black
             # text_color = (100, 255, 100) if result_dict['success'] else (255, 100, 100)
-            lines = textwrap.wrap(text, width=100)
+            lines = textwrap.wrap(text, width=110)
             draw = ImageDraw.Draw(new_im)
-            y_start = 10 if len(lines) > 1 else 45
+            y_start = 10 if len(lines) > 1 else 35
             draw.multiline_text((10, y_start), '\n'.join(lines), font=font, fill=text_color)
             y_offset = textbox_height
         else:
