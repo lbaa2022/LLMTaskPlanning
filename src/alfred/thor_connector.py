@@ -55,7 +55,9 @@ class ThorConnector(ThorEnv):
         return self.reachable_positions[selected]
 
     def llm_skill_interact(self, instruction: str):
-        if not instruction.startswith("put down "):
+        if instruction.startswith("put down ") or instruction.startswith("open "):
+            pass
+        else:
             self.cur_receptacle = None
 
         if instruction.startswith("find "):
