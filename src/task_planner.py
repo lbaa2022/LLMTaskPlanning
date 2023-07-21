@@ -1,5 +1,5 @@
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaForCausalLM
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from torch.nn import CrossEntropyLoss
 
 
@@ -25,12 +25,8 @@ class TaskPlanner:
                 model_args['load_in_8bit'] = True
         model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
-        if "alpaca" in self.model_name or "llama" in self.model_name:
-            self.model = LlamaForCausalLM.from_pretrained(**model_args)
-            self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(**model_args)
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(**model_args)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
 
         if not cfg.planner.use_accelerate_device_map:
             self.model = self.model.to(self.device)
