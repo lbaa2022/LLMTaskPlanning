@@ -8,7 +8,7 @@ sys.path.insert(0, 'src')
 sys.path.insert(0, './alfred')
 
 from src.alfred.alfred_evaluator import AlfredEvaluator
-
+from wah.wah_evaluator import WahEvaluator
 
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg):
