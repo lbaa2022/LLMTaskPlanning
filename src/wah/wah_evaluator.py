@@ -97,13 +97,11 @@ class WahEvaluator(Evaluator):
         while not done:
             ### Task planning
             step, prompt = task_planner.plan_step_by_step(nl_instruction, prev_steps, prev_action_msg)
-            ### TODO: Update skill set
-            task_planner.update_skill_set(step, task_planner.nl_obj_list)
             
             if step is None:
                 log.info("\tmax step reached")
                 break
-
+            
             if log_prompt:
                 log.info(prompt)
             # log.info(f'{len(prev_steps) + 1}. {step}')
@@ -114,13 +112,15 @@ class WahEvaluator(Evaluator):
                 prev_action_msg.append('')
                 break
             
-            ### TODO: NL feedback ######################################
-            prev_action_msg.append('')
+            ### TODO: Update skill set
+            task_planner.update_skill_set(step, task_planner.nl_obj_list)
             
             ### Simualtion
             # env.step(step, step_form='nl', instance=False)
             possible, feedback = env.step(step, step_form='nl', instance=False)
             log.info(f'{len(prev_steps)}. {step} ({possible})')
+            ### TODO: NL feedback ######################################
+            prev_action_msg.append('')
             
             ### TODO: Visualization Save ################################
         
