@@ -11,8 +11,8 @@ from gen import constants
 from gen.utils.game_util import get_objects_with_name_and_prop
 from alfred.utils import natural_word_to_ithor_name
 
-
 log = logging.getLogger(__name__)
+
 
 class ThorConnector(ThorEnv):
     def __init__(self, x_display=constants.X_DISPLAY,
@@ -114,6 +114,12 @@ class ThorConnector(ThorEnv):
 
         return ret_dict
 
+    def get_object_prop(self, name, prop, metadata):
+        for obj in metadata['objects']:
+            if name in obj['objectId']:
+                return obj[prop]
+        return None
+
     def nav_obj(self, target_obj: str):
         objects = self.last_event.metadata['objects']
         action_name = 'object navigation'
@@ -128,11 +134,12 @@ class ThorConnector(ThorEnv):
             if obj_type.casefold() == target_obj.casefold():
                 if obj["distance"] < min_dist:  # choose the closest one
                     obj_idx = i
-                    pick_penalty = 0  # low priority for objects in closable receptacles such as fridge, microwave
+                    pick_penalty = 0  # low priority for objects in closed receptacles such as fridge, microwave
                     if obj['parentReceptacles']:
                         for p in obj['parentReceptacles']:
-                            openable = get_objects_with_name_and_prop(p, 'openable', self.last_event.metadata)
-                            if len(openable) > 0:
+                            is_open = self.get_object_prop(p, 'isOpen', self.last_event.metadata)
+                            openable = self.get_object_prop(p, 'openable', self.last_event.metadata)
+                            if openable is True and is_open is False:
                                 pick_penalty = 10000
                                 break
                     min_dist = obj["distance"] + pick_penalty
@@ -171,7 +178,8 @@ class ThorConnector(ThorEnv):
                                   rotation=rot_angle, horizon=-hor_angle))
 
                 if not self.last_event.metadata['lastActionSuccess']:
-                    log.warning(f"TeleportFull action failed: {self.last_event.metadata['errorMessage']}, trying again...")
+                    log.warning(
+                        f"TeleportFull action failed: {self.last_event.metadata['errorMessage']}, trying again...")
                 else:
                     teleport_success = True
                     break
@@ -181,7 +189,8 @@ class ThorConnector(ThorEnv):
 
         return ret_msg
 
-    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, get_inherited=False, inside_receptacle_penalty=True):
+    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, get_inherited=False,
+                             inside_receptacle_penalty=True):
         obj_id = None
         obj_data = None
         min_distance = 1e+8
@@ -195,8 +204,9 @@ class ThorConnector(ThorEnv):
                     penalty = 0  # low priority for objects in closable receptacles such as fridge, microwave
                     if inside_receptacle_penalty and obj['parentReceptacles']:
                         for p in obj['parentReceptacles']:
-                            openable = get_objects_with_name_and_prop(p, 'openable', self.last_event.metadata)
-                            if len(openable) > 0:
+                            is_open = self.get_object_prop(p, 'isOpen', self.last_event.metadata)
+                            openable = self.get_object_prop(p, 'openable', self.last_event.metadata)
+                            if openable is True and is_open is False:
                                 penalty = 10000
                                 break
                     min_distance = obj["distance"] + penalty
@@ -309,16 +319,25 @@ class ThorConnector(ThorEnv):
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to open'
         else:
-            for i in range(2):
+            for i in range(3):
                 super().step(dict(
                     action="OpenObject",
                     objectId=obj_id,
                 ))
 
                 if not self.last_event.metadata['lastActionSuccess']:
-                    log.warning(f"OpenObject action failed: {self.last_event.metadata['errorMessage']}, moving backward and trying again...")
+                    log.warning(
+                        f"OpenObject action failed: {self.last_event.metadata['errorMessage']}, moving backward and trying again...")
                     ret_msg = f"Open action failed"
-                    super().step(dict(action="MoveBack"))
+
+                    # move around to avoid self-collision
+                    if i == 0:
+                        super().step(dict(action="MoveBack"))
+                    elif i == 1:
+                        super().step(dict(action="MoveRight"))
+                    elif i == 2:
+                        super().step(dict(action="MoveLeft"))
+                        super().step(dict(action="MoveLeft"))
                 else:
                     ret_msg = ''
                     break
