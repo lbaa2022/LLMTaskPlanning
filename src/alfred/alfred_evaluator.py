@@ -25,7 +25,6 @@ from src.evaluator import Evaluator
 
 
 splits = 'alfred/data/splits/oct21.json'
-debug_executor = 0  # disable LLM planner
 font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
 log = logging.getLogger(__name__)
 
@@ -43,11 +42,11 @@ class AlfredEvaluator(Evaluator):
         random.seed(cfg.planner.random_seed)
 
         # llm planner
-        if not debug_executor:
+        if len(cfg.planner.model_name) > 0:
             planner = AlfredTaskPlanner(cfg)
+            planner.reset()  # init skill set
         else:
             planner = None
-        planner.reset()  # init skill set
 
         # prepare
         args_dict = {'data': 'alfred/data/json_2.1.0', 'pframe': 300, 'fast_epoch': False,
@@ -69,21 +68,23 @@ class AlfredEvaluator(Evaluator):
 
         # load tasks
         assert cfg.alfred.eval_set in splits.keys()
-        files = splits[cfg.alfred.eval_set]
+        files = []
 
+        # exclude two obj task
+        for e in splits[cfg.alfred.eval_set]:
+            if 'pick_two_obj_and_place' not in e['task']:
+                files.append(e)
+
+        # select a subset of tasks
         if cfg.alfred.eval_portion_in_percent < 100:
             random.seed(1)  # fix seed for reproducibility
             n_sample = int(len(files) * cfg.alfred.eval_portion_in_percent / 100)
             files = random.sample(files, n_sample)
             random.seed(cfg.planner.random_seed)
 
-        # random.shuffle(files)
-        # files = [files[30]]  # debugging
-        # files = files[24:30]  # debugging
-
         if False:  # debug mode
             for file in files:
-                if 'T20190907_001129_214240' in file['task'] and file['repeat_idx'] == 1:
+                if 'trial_T20190909_043103_418752' in file['task']:
                     new_files = [file]
                     break
             files = new_files
@@ -110,8 +111,18 @@ class AlfredEvaluator(Evaluator):
         env = ThorConnector(x_display=x_display)
 
         # save prompt
-        with open(os.path.join(save_path, 'prompt.txt'), 'w') as f:
-            f.write(planner.prompt)
+        if planner is not None:
+            with open(os.path.join(save_path, 'prompt.txt'), 'w') as f:
+                f.write(planner.prompt)
+
+        train_gt_steps = None
+        if self.cfg.alfred.eval_set == 'train':
+            # load ground-truth trajectories
+            train_gt_steps = {}
+            with open(self.cfg.prompt.example_file_path, 'r') as f:
+                train_examples = json.load(f)
+            for ex in train_examples:
+                train_gt_steps[ex['task id']] = ex['NL steps']
 
         # run
         for i, task in enumerate(tqdm(tasks)):
@@ -120,7 +131,7 @@ class AlfredEvaluator(Evaluator):
                 traj_data = load_task_json(task)
                 r_idx = task['repeat_idx']
                 log.info(f"Evaluating ({i+1}/{len(tasks)}): {traj_data['root']}")
-                result = self.evaluate_task(env, traj_data, r_idx, model_args, planner, save_path, log_prompt=(i==0))
+                result = self.evaluate_task(env, traj_data, r_idx, model_args, planner, save_path, log_prompt=(i==0), train_gt_steps=train_gt_steps)
                 results.append(result)
 
             except Exception as e:
@@ -130,7 +141,7 @@ class AlfredEvaluator(Evaluator):
 
         return results
     
-    def evaluate_task(self, env, traj_data, r_idx, model_args, planner, save_path, log_prompt=False):
+    def evaluate_task(self, env, traj_data, r_idx, model_args, planner, save_path, log_prompt=False, train_gt_steps=None):
         # setup scene
         scene_num = traj_data['scene']['scene_num']
         object_poses = traj_data['scene']['object_poses']
@@ -158,11 +169,19 @@ class AlfredEvaluator(Evaluator):
         prev_steps = []
         prev_action_msg = []
         while not done:
-            # find next step
-            step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
-            if step is None:
-                log.info("\tmax step reached")
-                break
+            if self.cfg.alfred.eval_set == 'train' and train_gt_steps is not None:
+                # sanity check for thor connector: use ground-truth steps
+                if t >= len(train_gt_steps[traj_data['task_id']]):
+                    step = 'done'
+                else:
+                    step = train_gt_steps[traj_data['task_id']][t]
+                prompt = ''
+            else:
+                # find next step
+                step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
+                if step is None:
+                    log.info("\tmax step reached")
+                    break
 
             if log_prompt:
                 log.info(prompt)
