@@ -133,6 +133,61 @@ def convert_action_to_nl_skill(action, next_action, args):
     return steps
 
 
+def convert_low_level_action_to_nl_skill(action, args, cur_obj):
+    from src.alfred.utils import ithor_name_to_natural_word, find_indefinite_article
+
+    steps = []
+    ret_obj = None
+
+    def obj_id_to_nl(s):
+        return ithor_name_to_natural_word(s.split('|')[0])
+
+    if action == 'OpenObject':
+        o = obj_id_to_nl(args['objectId'])
+        if cur_obj != o:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
+        ret_obj = o
+        steps.append(f'open the {o}')
+    elif action == 'CloseObject':
+        o = obj_id_to_nl(args['objectId'])
+        ret_obj = o
+        steps.append(f'close the {o}')
+    elif action == 'PutObject':
+        o_recep = obj_id_to_nl(args['receptacleObjectId'])
+        if cur_obj != o_recep:
+            steps.append(f'find {find_indefinite_article(o_recep)} {o_recep}')
+        ret_obj = o_recep
+        o = obj_id_to_nl(args['objectId'])
+        steps.append(f'put down the {o}')
+    elif action == 'PickupObject':
+        o = obj_id_to_nl(args['objectId'])
+        if cur_obj != o:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
+        ret_obj = o
+        steps.append(f'pick up the {o}')
+    elif action == 'ToggleObjectOn':
+        o = obj_id_to_nl(args['objectId'])
+        if cur_obj != o:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
+        ret_obj = o
+        steps.append(f'turn on the {o}')
+    elif action == 'ToggleObjectOff':
+        o = obj_id_to_nl(args['objectId'])
+        if cur_obj != o:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
+        ret_obj = o
+        steps.append(f'turn off the {o}')
+    elif action == 'SliceObject':
+        o = obj_id_to_nl(args['objectId'])
+        if cur_obj != o:
+            steps.append(f'find {find_indefinite_article(o)} {o}')
+        ret_obj = o
+        steps.append(f'slice the {o}')
+    else:
+        pass
+
+    return steps, ret_obj
+
 def export_train_examples(export=True, export_text_samples=True):
     tasks = load_tasks('train')
     selected_samples = []
@@ -149,19 +204,42 @@ def export_train_examples(export=True, export_text_samples=True):
 
         for e in samples:
             print('Task id:', e['task_id'])
+
+            # exclude pick_two_obj_and_place type
+            if e['task_type'] == 'pick_two_obj_and_place':
+                continue
+
             NL_steps = []
             print('PDDL high-level actions:')
             skip_this_sample = False
-            for s_i, s in enumerate(e['plan']['high_pddl']):
-                action = s['discrete_action']['action']
+            # for s_i, s in enumerate(e['plan']['high_pddl']):
+            #     action = s['discrete_action']['action']
+            #     next_action = None
+            #     if s_i < len(e['plan']['high_pddl']) - 1:
+            #         next_action = e['plan']['high_pddl'][s_i + 1]['discrete_action']['action']
+            #     args = s['discrete_action']['args']
+            #     print('  ', action, args)
+            #
+            #     try:
+            #         nl_skill = convert_action_to_nl_skill(action, next_action, args)
+            #     except ValueError:
+            #         skip_this_sample = True
+            #         break
+            #
+            #     if nl_skill:
+            #         NL_steps.extend(nl_skill)
+
+            cur_obj = None
+            for s_i, s in enumerate(e['plan']['low_actions']):
+                action = s['api_action']['action']
                 next_action = None
-                if s_i < len(e['plan']['high_pddl']) - 1:
-                    next_action = e['plan']['high_pddl'][s_i + 1]['discrete_action']['action']
-                args = s['discrete_action']['args']
+                if s_i < len(e['plan']['low_actions']) - 1:
+                    next_action = e['plan']['low_actions'][s_i + 1]['api_action']['action']
+                args = s['api_action']
                 print('  ', action, args)
 
                 try:
-                    nl_skill = convert_action_to_nl_skill(action, next_action, args)
+                    nl_skill, cur_obj = convert_low_level_action_to_nl_skill(action, args, cur_obj)
                 except ValueError:
                     skip_this_sample = True
                     break
@@ -169,7 +247,7 @@ def export_train_examples(export=True, export_text_samples=True):
                 if nl_skill:
                     NL_steps.extend(nl_skill)
 
-            if skip_this_sample:
+            if skip_this_sample or len(NL_steps) <= 0:
                 continue
 
             n_annotations = len(e['turk_annotations']['anns'])
@@ -186,7 +264,7 @@ def export_train_examples(export=True, export_text_samples=True):
                 selected_samples.append({
                     'task type': key,
                     'task id': e['task_id'],
-                    'task description': e['turk_annotations']['anns'][ann_i]['task_desc'],
+                    'task description': e['turk_annotations']['anns'][ann_i]['task_desc'].strip(),
                     'step description': e['turk_annotations']['anns'][ann_i]['high_descs'],
                     'NL steps': NL_steps,
                     'PDDL steps': e['plan']['high_pddl']
