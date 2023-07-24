@@ -25,7 +25,7 @@ class TaskPlanner:
                 model_args['load_in_8bit'] = True
         model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
-        if "decapoda-research/llama" in self.model_name:  # automodel does not work well with decapoda-research/llama
+        if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:  # these do not work well with automodel
             self.model = LlamaForCausalLM.from_pretrained(**model_args)
             self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
         else:
