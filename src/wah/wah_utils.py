@@ -20,38 +20,80 @@ def separate_new_ids_graph(graph, max_id):
 
 ##### 
 def step_nl2sim(step_nl, obj_dict_nl2sim):
+    
     if "put " in step_nl and " in " in step_nl:
-        obj1_name, obj2_name = step_nl.replace('put ', '').split(' in ')
+        obj1_name, obj2_name = step_nl.replace('put the ', '').split(' in the ')
         obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
         script = f"<char0> [putin] <{obj1_sim}> (1) <{obj2_sim}> (1)"
     elif "put " in step_nl and " on " in step_nl:
-        obj1_name, obj2_name = step_nl.replace('put ', '').split(' on ')
+        obj1_name, obj2_name = step_nl.replace('put the ', '').split(' on the ')
         obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
         script = f"<char0> [putback] <{obj1_sim}> (1) <{obj2_sim}> (1)"
     else:
-        if "walk to " in step_nl:
+        if "find " in step_nl:
             action = "walk"
-            obj1_name = step_nl.split("walk to ")[1]
+            obj1_w_article = step_nl.split("find ")[1]
+            if "a " in obj1_w_article:
+                obj1_name = obj1_w_article.split("a ")[1]
+            elif "an " in obj1_w_article:
+                obj1_name = obj1_w_article.split("an ")[1]
+            else:
+                raise NotImplementedError
+        elif "go to" in step_nl:
+            action = "walk"
+            obj1_name = step_nl.split("go to the ")[1]
         elif "grab " in step_nl:
             action = "grab"
-            obj1_name = step_nl.split("grab ")[1]
+            obj1_name = step_nl.split("grab the ")[1]
         elif "open " in step_nl:
             action = "open"
-            obj1_name = step_nl.split("open ")[1]
+            obj1_name = step_nl.split("open the ")[1]
         elif "close " in step_nl:
             action = "close"
-            obj1_name = step_nl.split("close ")[1]
+            obj1_name = step_nl.split("close the ")[1]
         elif "switch on " in step_nl:
             action = "switchon"
-            obj1_name = step_nl.split("switch on ")[1]
-        elif "switch off " in step_nl:
-            action = "switchoff"
-            obj1_name = step_nl.split("switch off ")[1]
+            obj1_name = step_nl.split("switch on the ")[1]
         else:
             raise NotImplementedError
         obj1_sim = obj_dict_nl2sim[obj1_name]
         script = f"<char0> [{action}] <{obj1_sim}> (1)"
     return script
+
+
+# def step_nl2sim(step_nl, obj_dict_nl2sim):
+#     if "put " in step_nl and " in " in step_nl:
+#         obj1_name, obj2_name = step_nl.replace('put ', '').split(' in ')
+#         obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
+#         script = f"<char0> [putin] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+#     elif "put " in step_nl and " on " in step_nl:
+#         obj1_name, obj2_name = step_nl.replace('put ', '').split(' on ')
+#         obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
+#         script = f"<char0> [putback] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+#     else:
+#         if "walk to " in step_nl:
+#             action = "walk"
+#             obj1_name = step_nl.split("walk to ")[1]
+#         elif "grab " in step_nl:
+#             action = "grab"
+#             obj1_name = step_nl.split("grab ")[1]
+#         elif "open " in step_nl:
+#             action = "open"
+#             obj1_name = step_nl.split("open ")[1]
+#         elif "close " in step_nl:
+#             action = "close"
+#             obj1_name = step_nl.split("close ")[1]
+#         elif "switch on " in step_nl:
+#             action = "switchon"
+#             obj1_name = step_nl.split("switch on ")[1]
+#         elif "switch off " in step_nl:
+#             action = "switchoff"
+#             obj1_name = step_nl.split("switch off ")[1]
+#         else:
+#             raise NotImplementedError
+#         obj1_sim = obj_dict_nl2sim[obj1_name]
+#         script = f"<char0> [{action}] <{obj1_sim}> (1)"
+#     return script
 
 
 def split_step_sim(step_sim, with_ids=False):
@@ -105,7 +147,13 @@ def change_step_sim_obj_ids(step_sim, obj_ids):
     else:
         raise NotImplementedError
     
-    
+def find_indefinite_article(w):
+    # simple rule, not always correct
+    w = w.lower()
+    if w[0] in ['a', 'e', 'i', 'o', 'u']:
+        return 'an'
+    else:
+        return 'a'
 
 
 
