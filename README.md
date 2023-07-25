@@ -59,12 +59,33 @@ $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
 
 ## Benchmarking on Watch-And-Help
 ### Download the VirtualHome Simulator
-Download the VirtualHome simulator v2.2.2 from http://virtual-home.org/documentation/master/downloads/downloads.html#v2-2-2
-Extract it in {project_root}/virtualhome_wah/simulation/unity_simulator/
+- Download the VirtualHome simulator v2.2.2 and extract it
+```bash
+$ cd {project_root}/virtualhome/simulation/unity_simulator/
+$ wget http://virtual-home.org//release/simulator/v2.0/v2.2.2/linux_exec.zip
+$ unzip linux_exec.zip
+```
+
 ### Benchmarking on Watch-And-Help-NL
+- Open a new terminal and run VirtualHome simulator
+
 ```bash
 $ cd {project_root}
-$ ./script/icra_exp1_benchmark_wah.sh
+$ ./virtualhome/simulation/unity_simulator/linux_exec.x86_64
+```
+
+- Open another terminal and evaluate.
+
+```bash
+$ cd {project_root}
+$ python src/evaluate.py --config-name=config_wah
+```
+
+- You can override the configuration. We used [Hydra](https://hydra.cc/) for configuration management.
+
+```bash
+$ cd {project_root}
+$ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B planner.score_function='sum' planner.fast_mode=True planner.scoring_batch_size=10 
 ```
 
 

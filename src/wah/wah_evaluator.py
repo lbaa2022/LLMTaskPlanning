@@ -61,10 +61,12 @@ class WahEvaluator(Evaluator):
         
         results = []
         for i, task_d in tqdm(enumerate(test_set), total=len(test_set)):
+        # for i, task_d in tqdm(enumerate(test_set[:1]), total=len(test_set[:1])):
             try:
                 sim_obj_list = list(set([node['class_name'] for node in task_d['init_graph']['nodes']]))
                 nl_obj_list = [obj_dict_sim2nl[sim_obj] for sim_obj in sim_obj_list]
-                nl_act_list = ["walk", "grab", "open", "close", "switch on"]
+                # nl_act_list = ["walk", "grab", "open", "close", "switch on"]
+                nl_act_list = ["find", "go to", "grab", "open", "close", "switch on"]
                 
                 ### Reset planner
                 task_planner.reset(nl_act_list, nl_obj_list)
@@ -94,10 +96,11 @@ class WahEvaluator(Evaluator):
         done, success = False, False
         prev_steps = []
         prev_action_msg = []
+        skill_set_size_seq = []
         while not done:
             ### Task planning
+            skill_set_size_seq.append(len(task_planner.skill_set))
             step, prompt = task_planner.plan_step_by_step(nl_instruction, prev_steps, prev_action_msg)
-            
             if step is None:
                 log.info("\tmax step reached")
                 break
@@ -138,11 +141,12 @@ class WahEvaluator(Evaluator):
             total_num_subgoal += num_subgoal
             
         subgoal_succes_rate = total_num_subgoal_satisfied / total_num_subgoal
-        # pdb.set_trace()
         ### Record results
+        log.info(f"avg. skill set size: {sum(skill_set_size_seq)/len(skill_set_size_seq)}")
         log_entry = {'trial': task_d['task_id'],
                     'goal_instr': nl_instruction,
                     'inferred_steps': prev_steps,
                     'goal_success': goal_success,
-                    'subgoal_success_rate': subgoal_succes_rate}
+                    'subgoal_success_rate': subgoal_succes_rate,
+                    'avg_skill_set_size': sum(skill_set_size_seq)/len(skill_set_size_seq)}
         return log_entry

@@ -6,8 +6,8 @@ import wah.wah_utils as utils
 
 curr_dir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(os.path.join(curr_dir, '../..'))
-from virtualhome_wah.simulation.environment.unity_environment import UnityEnvironment as BaseUnityEnvironment
-from virtualhome_wah.simulation.evolving_graph import utils as utils_env
+from virtualhome.simulation.environment.unity_environment import UnityEnvironment as BaseUnityEnvironment
+from virtualhome.simulation.evolving_graph import utils as utils_env
 
 import pdb
 
