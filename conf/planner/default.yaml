@@ -1,12 +1,12 @@
 # EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B, EleutherAI/gpt-neox-20b
 # facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
-model_name: "EleutherAI/gpt-j-6B"
+model_name: "EleutherAI/gpt-neo-1.3B"
 use_accelerate_device_map: False
 load_in_8bit: False
 device: 'cuda'
-max_steps: 20
+max_steps: 25
 random_seed: 1
-scoring_batch_size: 8
+scoring_batch_size: 4
 score_function: 'sum'
 fast_mode: True
 use_action_failure_msg: False  # NOTE: this uses a pre-written prompt

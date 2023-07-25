@@ -267,7 +267,7 @@ def export_train_examples(export=True, export_text_samples=True):
                     'task description': e['turk_annotations']['anns'][ann_i]['task_desc'].strip(),
                     'step description': e['turk_annotations']['anns'][ann_i]['high_descs'],
                     'NL steps': NL_steps,
-                    'PDDL steps': e['plan']['high_pddl']
+                    # 'PDDL steps': e['plan']['high_pddl']
                     })
                 print()
 

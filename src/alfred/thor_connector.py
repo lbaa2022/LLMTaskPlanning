@@ -25,6 +25,7 @@ class ThorConnector(ThorEnv):
         self.agent_height = 0.9
         self.cur_receptacle = None
         self.reachable_positions, self.reachable_position_kdtree = None, None
+        self.sliced = False
 
     def restore_scene(self, object_poses, object_toggles, dirty_and_empty):
         super().restore_scene(object_poses, object_toggles, dirty_and_empty)
@@ -63,7 +64,7 @@ class ThorConnector(ThorEnv):
         if instruction.startswith("find "):
             obj_name = instruction.replace('find a ', '').replace('find an ', '')
             self.cur_receptacle = obj_name
-            ret = self.nav_obj(natural_word_to_ithor_name(obj_name))
+            ret = self.nav_obj(natural_word_to_ithor_name(obj_name), self.sliced)
         elif instruction.startswith("pick up "):
             obj_name = instruction.replace('pick up the ', '')
             ret = self.pick(natural_word_to_ithor_name(obj_name))
@@ -79,6 +80,11 @@ class ThorConnector(ThorEnv):
                 obj = m.group(1).replace('the ', '')
                 receptacle = self.cur_receptacle
                 ret = self.put(natural_word_to_ithor_name(receptacle))
+
+            if len(ret) > 0:
+                # if put down failed, then drop the object
+                ret = self.drop()
+
         elif instruction.startswith("open "):
             obj_name = instruction.replace('open the ', '')
             ret = self.open(natural_word_to_ithor_name(obj_name))
@@ -94,6 +100,7 @@ class ThorConnector(ThorEnv):
         elif instruction.startswith("slice "):
             obj_name = instruction.replace('slice the ', '')
             ret = self.slice(natural_word_to_ithor_name(obj_name))
+            self.sliced = True
         elif instruction.startswith("drop"):
             ret = self.drop()
         else:
@@ -120,29 +127,26 @@ class ThorConnector(ThorEnv):
                 return obj[prop]
         return None
 
-    def nav_obj(self, target_obj: str):
+    @staticmethod
+    def angle_diff(x, y):
+        x = math.radians(x)
+        y = math.radians(y)
+        return math.degrees(math.atan2(math.sin(x - y), math.cos(x - y)))
+    def nav_obj(self, target_obj: str, prefer_sliced=False):
         objects = self.last_event.metadata['objects']
         action_name = 'object navigation'
         ret_msg = ''
         log.info(f'{action_name} ({target_obj})')
 
         # get the object location
+        obj_id, obj_data = self.get_obj_id_from_name(target_obj, priority_in_visibility=True, priority_sliced=prefer_sliced)
+
+        # find object index from id
         obj_idx = -1
-        min_dist = 1e+8
-        for i, obj in enumerate(objects):
-            obj_type = obj['objectId'].split('|')[0].lower()
-            if obj_type.casefold() == target_obj.casefold():
-                if obj["distance"] < min_dist:  # choose the closest one
-                    obj_idx = i
-                    pick_penalty = 0  # low priority for objects in closed receptacles such as fridge, microwave
-                    if obj['parentReceptacles']:
-                        for p in obj['parentReceptacles']:
-                            is_open = self.get_object_prop(p, 'isOpen', self.last_event.metadata)
-                            openable = self.get_object_prop(p, 'openable', self.last_event.metadata)
-                            if openable is True and is_open is False:
-                                pick_penalty = 10000
-                                break
-                    min_dist = obj["distance"] + pick_penalty
+        for i, o in enumerate(objects):
+            if o['objectId'] == obj_id:
+                obj_idx = i
+                break
 
         if obj_idx == -1:
             ret_msg = f'Cannot find {target_obj}'
@@ -153,7 +157,15 @@ class ThorConnector(ThorEnv):
 
             # get obj location
             loc = objects[obj_idx]['position']
+            obj_rot = objects[obj_idx]['rotation']['y']
 
+            # do not move if the object is already visible
+            if objects[obj_idx]['visible']:
+                log.info('Object is already visible')
+                n_attempts = 0
+                teleport_success = True
+
+            # try teleporting
             for i in range(n_attempts):
                 closest_loc = self.find_close_reachable_position([loc['x'], loc['y'], loc['z']], i + 1)
 
@@ -162,6 +174,15 @@ class ThorConnector(ThorEnv):
                 if rot_angle > 0:
                     rot_angle -= 2 * math.pi
                 rot_angle = -(180 / math.pi) * rot_angle  # in degrees
+
+                if i < 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):  # not always correct
+                    angle_diff = abs(self.angle_diff(rot_angle, obj_rot))
+                    if target_obj == 'Fridge' and \
+                            not ((90 - 20 < angle_diff < 90 + 20) or (270 - 20 < angle_diff < 270 + 20)):
+                        continue
+                    if target_obj == 'Microwave' and \
+                            not ((180 - 20 < angle_diff < 180 + 20) or (0 - 20 < angle_diff < 0 + 20)):
+                        continue
 
                 # calculate desired horizon angle
                 camera_height = self.agent_height + constants.CAMERA_HEIGHT_OFFSET
@@ -189,8 +210,8 @@ class ThorConnector(ThorEnv):
 
         return ret_msg
 
-    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, get_inherited=False,
-                             inside_receptacle_penalty=True):
+    def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, priority_sliced=False, get_inherited=False,
+                             parent_receptacle_penalty=True, priority_in_visibility=False):
         obj_id = None
         obj_data = None
         min_distance = 1e+8
@@ -201,34 +222,47 @@ class ThorConnector(ThorEnv):
                     (get_inherited is False or len(obj['objectId'].split('|')) == 5):
                 if obj["distance"] < min_distance:
                     obj_id = obj["objectId"]
-                    penalty = 0  # low priority for objects in closable receptacles such as fridge, microwave
-                    if inside_receptacle_penalty and obj['parentReceptacles']:
+                    penalty_advantage = 0  # low priority for objects in closable receptacles such as fridge, microwave
+                    if parent_receptacle_penalty and obj['parentReceptacles']:
                         for p in obj['parentReceptacles']:
                             is_open = self.get_object_prop(p, 'isOpen', self.last_event.metadata)
                             openable = self.get_object_prop(p, 'openable', self.last_event.metadata)
                             if openable is True and is_open is False:
-                                penalty = 10000
+                                penalty_advantage += 100000
                                 break
-                    min_distance = obj["distance"] + penalty
-                    obj_data = obj
+
+                    if obj_name.casefold() == 'stoveburner':
+                        # try to find an empty stove
+                        if len(obj['receptacleObjectIds']) > 0:
+                            penalty_advantage += 10000
+
+                    if priority_in_visibility and obj['visible'] is False:
+                        penalty_advantage += 1000
+
+                    if priority_sliced and '_Slice' in obj['name']:
+                        penalty_advantage += -100  # prefer sliced objects; this prevents picking up non-sliced objects
+
+                    if obj["distance"] + penalty_advantage < min_distance:
+                        min_distance = obj["distance"] + penalty_advantage
+                        obj_data = obj
 
         return obj_id, obj_data
 
     def pick(self, obj_name):
-        obj_id, obj_data = self.get_obj_id_from_name(obj_name, only_pickupable=True)
+        obj_id, obj_data = self.get_obj_id_from_name(obj_name, only_pickupable=True, priority_in_visibility=True, priority_sliced=self.sliced)
         ret_msg = ''
         log.info(f'pick {obj_id}')
 
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to pick up'
-        elif obj_data['visible'] is False and len(obj_data['parentReceptacles']) > 0:
+        elif obj_data['visible'] is False and obj_data['parentReceptacles'] is not None and len(obj_data['parentReceptacles']) > 0:
             recep_name = obj_data["parentReceptacles"][0].split('|')[0]
             ret_msg = f'{obj_name} is not visible because it is in {recep_name}'
         else:
             super().step(dict(
                 action="PickupObject",
                 objectId=obj_id,
-                forceAction=False  # todo: need forceaction?
+                forceAction=True
             ))
 
             if not self.last_event.metadata['lastActionSuccess']:
@@ -251,7 +285,7 @@ class ThorConnector(ThorEnv):
             return ret_msg
 
         halt = False
-        for j in range(2):  # look up
+        for j in range(7):  # move/look around or rotate obj
             for i in range(2):  # find an inherited receptacle (e.g., basin)
                 if i == 0:
                     recep_id, _ = self.get_obj_id_from_name(receptacle_name)
@@ -266,16 +300,33 @@ class ThorConnector(ThorEnv):
 
                 # look up (put action fails when a receptacle is not visible)
                 if j == 1:
-                    log.warning("Look up")
                     super().step(dict(action="LookUp"))
                     super().step(dict(action="LookUp"))
-
-                # this somehow make putobject success in some cases (for instance, put the book on the sofa).
-                # todo: investigate this more
-                super().step(dict(
-                    action="RotateHand",
-                    x=40
-                ))
+                elif j == 2:
+                    super().step(dict(action="LookDown"))
+                    super().step(dict(action="LookDown"))
+                    super().step(dict(action="LookDown"))
+                    super().step(dict(action="LookDown"))
+                elif j == 3:
+                    super().step(dict(action="LookUp"))
+                    super().step(dict(action="LookUp"))
+                    super().step(dict(action="MoveBack"))
+                elif j == 4:
+                    super().step(dict(action="MoveAhead"))
+                    super().step(dict(action="MoveRight"))
+                    super().step(dict(action="MoveRight"))
+                elif j == 5:
+                    super().step(dict(action="MoveLeft"))
+                    super().step(dict(action="MoveLeft"))
+                    super().step(dict(action="MoveLeft"))
+                    super().step(dict(action="MoveLeft"))
+                elif j == 6:
+                    super().step(dict(action="MoveRight"))
+                    super().step(dict(action="MoveRight"))
+                    super().step(dict(  # this somehow make putobject success in some cases
+                        action="RotateHand",
+                        x=40
+                    ))
 
                 super().step(dict(
                     action="PutObject",
@@ -319,7 +370,7 @@ class ThorConnector(ThorEnv):
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to open'
         else:
-            for i in range(3):
+            for i in range(4):
                 super().step(dict(
                     action="OpenObject",
                     objectId=obj_id,
@@ -334,6 +385,7 @@ class ThorConnector(ThorEnv):
                     if i == 0:
                         super().step(dict(action="MoveBack"))
                     elif i == 1:
+                        super().step(dict(action="MoveBack"))
                         super().step(dict(action="MoveRight"))
                     elif i == 2:
                         super().step(dict(action="MoveLeft"))

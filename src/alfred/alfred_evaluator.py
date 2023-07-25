@@ -84,7 +84,7 @@ class AlfredEvaluator(Evaluator):
 
         if False:  # debug mode
             for file in files:
-                if 'trial_T20190909_043103_418752' in file['task']:
+                if 'trial_T20190907_012527_434405' in file['task']:
                     new_files = [file]
                     break
             files = new_files
@@ -195,7 +195,10 @@ class AlfredEvaluator(Evaluator):
 
             # execute
             step_to_execute = step
-            action_ret = env.llm_skill_interact(step_to_execute)
+            try:
+                action_ret = env.llm_skill_interact(step_to_execute)
+            except Exception as e:
+                log.warning(e)
             imgs.append(env.write_step_on_img(t+1, step_to_execute))
             prev_action_msg.append(action_ret['message'])
 
@@ -209,6 +212,7 @@ class AlfredEvaluator(Evaluator):
 
         # check if goal was satisfied
         goal_satisfied = env.get_goal_satisfied()
+        log.info('success: ' + str(goal_satisfied))
         if goal_satisfied:
             # print("Goal Reached")
             success = True
