@@ -1,4 +1,5 @@
 from task_planner import TaskPlanner
+from wah.wah_utils import find_indefinite_article
 import json
 
 import pdb
@@ -45,24 +46,49 @@ class WahTaskPlanner(TaskPlanner):
         nl_grab_objs = ['alcohol', 'apple', 'bananas', 'bar soap', 'bell pepper', 'board game', 'book', 'box', 'slice of bread', 'bucket', 'candle', 'candy bar', 'carrot', 'cell phone', 'cereal', 'chair', 'chicken', 'Chinese food', 'chips', 'chocolate syrup', 'clock', 'pants', 'pile of clothes', 'shirt', 'coat rack', 'coffee pot', 'condiment bottle', 'condiment shaker', 'cooking pot', 'crackers', 'crayons', 'creamy buns', 'cupcake', 'cutlery fork', 'cutlery knife', 'cutlets', 'cutting board', 'bowl', 'dishwashing liquid', 'face cream', 'folder', 'frying pan', 'glasses', 'globe', 'hair product', 'hanger', 'juice', 'keyboard', 'lime', 'lotion bottle', 'magazine', 'milk', 'milkshake', 'minced meat', 'mouse', 'mug', 'notes', 'oven tray', 'pancake', 'paper', 'pear', 'pie', 'pillow', 'plate', 'plum', 'pound cake', 'pudding', 'radio', 'remote control', 'rug', 'salad', 'salmod', 'slippers', 'ball', 'sundae', 'teddy bear', 'toiletpaper', 'toothbrush', 'toothpaste', 'towel', 'towel rack', 'toy', 'wall phone', 'wall picture frame', 'washing sponge', 'water glass', 'whipped cream', 'wine', 'wine glass']
         nl_open_objs = ['bathroom cabinet', 'book', 'bookshelf', 'box', 'cabinet', 'closet', 'pile of clothes', 'coffee maker', 'coffee pot', 'cooking pot', 'curtains', 'desk', 'dishwasher', 'door', 'folder', 'fridge', 'garbage can', 'hair product', 'kitchen cabinet', 'lotion bottle', 'magazine', 'microwave oven', 'milk', 'nightstand', 'printer', 'radio', 'stove', 'toilet', 'toothpaste', 'washing machine', 'window']
         nl_switch_objs = ['candle', 'cell phone', 'clock', 'coffee maker', 'computer', 'dishwasher', 'faucet', 'fridge', 'light switch', 'microwave oven', 'printer', 'radio', 'remote control', 'stove', 'toaster', 'tv', 'wall phone', 'washing machine']
+        nl_recepticel_objs = ['cabinet', 'kitchen cabinet', 'stove', 'garbage can', 'sink', 'washing machine', 'bathroom cabinet', 'microwave oven', 'coffee maker', 'box', 'closet', 'nightstand', 'dishwasher', 'toilet', 'bookshelf', 'fridge']
+        # for act_nl in nl_act_list:
+        #     if act_nl == "walk":
+        #         act_nl = "walk to"
+        #         for obj_nl in nl_obj_list:
+        #             if obj_nl in nl_all_objs:
+        #                 skill_set.append(f"{act_nl} {obj_nl}")
+        #     elif act_nl == "grab":
+        #         for obj_nl in nl_obj_list:
+        #             if obj_nl in nl_grab_objs:
+        #                 skill_set.append(f"{act_nl} {obj_nl}")
+        #     elif act_nl in ["open", "close"]:
+        #         for obj_nl in nl_obj_list:
+        #             if obj_nl in nl_open_objs:
+        #                 skill_set.append(f"{act_nl} {obj_nl}")
+        #     elif act_nl in ["switch on"]:
+        #         for obj_nl in nl_obj_list:
+        #             if obj_nl in nl_switch_objs:
+        #                 skill_set.append(f"{act_nl} {obj_nl}")
+        #     else:
+        #         NotImplementedError
         for act_nl in nl_act_list:
-            if act_nl == "walk":
-                act_nl = "walk to"
+            if act_nl == "find":
                 for obj_nl in nl_obj_list:
-                    if obj_nl in nl_all_objs:
-                        skill_set.append(f"{act_nl} {obj_nl}")
+                    if obj_nl in nl_grab_objs:
+                        article = find_indefinite_article(obj_nl)
+                        skill_set.append(f"{act_nl} {article} {obj_nl}")
+            elif act_nl == "go to":
+                for obj_nl in nl_obj_list:
+                    if obj_nl in nl_recepticel_objs:
+                        skill_set.append(f"{act_nl} the {obj_nl}")
             elif act_nl == "grab":
                 for obj_nl in nl_obj_list:
                     if obj_nl in nl_grab_objs:
-                        skill_set.append(f"{act_nl} {obj_nl}")
+                        skill_set.append(f"{act_nl} the {obj_nl}")
             elif act_nl in ["open", "close"]:
                 for obj_nl in nl_obj_list:
                     if obj_nl in nl_open_objs:
-                        skill_set.append(f"{act_nl} {obj_nl}")
+                        skill_set.append(f"{act_nl} the {obj_nl}")
             elif act_nl in ["switch on"]:
                 for obj_nl in nl_obj_list:
                     if obj_nl in nl_switch_objs:
-                        skill_set.append(f"{act_nl} {obj_nl}")
+                        skill_set.append(f"{act_nl} the {obj_nl}")
             else:
                 NotImplementedError
         return skill_set    
@@ -75,18 +101,20 @@ class WahTaskPlanner(TaskPlanner):
         skill_set = self.skill_set
         
         if "grab " in previous_step:
-            grabbed_obj = previous_step.split('grab ')[1]
+            grabbed_obj = previous_step.split('grab the ')[1]
             for obj_nl in nl_obj_list:
                 if obj_nl in nl_putin_objs:
-                    skill_set.append(f'put {grabbed_obj} in {obj_nl}')
+                    skill_set.append(f'put the {grabbed_obj} in the {obj_nl}')
                 if obj_nl in nl_putback_objs:
-                    skill_set.append(f'put {grabbed_obj} on {obj_nl}')
+                    skill_set.append(f'put the {grabbed_obj} on the {obj_nl}')
         ### Case 2. previous_step: put something ?? obj -> remove put grabbed_obj ?? obj
         elif "put " in previous_step:
             if " on " in previous_step:
-                grabbed_obj = previous_step.split("put ")[1].split(" on ")[0]
+                # grabbed_obj = previous_step.split("put ")[1].split(" on ")[0]                
+                grabbed_obj = previous_step.split("put the ")[1].split(" on the ")[0]
             elif " in " in previous_step:
-                grabbed_obj = previous_step.split("put ")[1].split(" in ")[0]
-            skill_set = [skill for skill in skill_set if not f"put {grabbed_obj}" in skill]
-        
+                # grabbed_obj = previous_step.split("put ")[1].split(" in ")[0]
+                grabbed_obj = previous_step.split("put the ")[1].split(" in the ")[0]
+            skill_set = [skill for skill in skill_set if not f"put the {grabbed_obj}" in skill]
+            # pdb.set_trace()
         self.skill_set = list(set(skill_set))
