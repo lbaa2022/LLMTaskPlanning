@@ -81,9 +81,10 @@ $ cd {project_root}
 $ python src/evaluate.py --config-name=config_wah
 ```
 
-You can override the configuration. We used [Hydra](https://hydra.cc/) for configuration management.
+- You can override the configuration. We used [Hydra](https://hydra.cc/) for configuration management.
 
 ```bash
+$ cd {project_root}
 $ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B planner.score_function='sum' planner.fast_mode=True planner.scoring_batch_size=10 
 ```
 
