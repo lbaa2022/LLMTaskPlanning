@@ -8,35 +8,29 @@ You can use WSL-Ubuntu on Windows 10/11.
 
 ## Install
 
-1. Install and setup `git-lfs`.
-    ```bash
-    $ sudo apt-get install git-lfs
-    $ git lfs install
-    ```
-
-2. Clone the whole repo.
+1. Clone the whole repo.
     ```bash
     $ git clone {repo_url}
     ```
 
-3. Setup a virtual environment.
+1. Setup a virtual environment.
     ```bash
     $ conda create -n {env_name} python=3.8
     $ conda activate {env_name}
     ```
 
-4. Install PyTorch (2.0.0) first (see https://pytorch.org/get-started/locally/).
+1. Install PyTorch (2.0.0) first (see https://pytorch.org/get-started/locally/).
     ```bash
     # exemplary install command for PyTorch 2.0.0 with CUDA 11.7
     $ pip install torch==2.0.0+cu117 torchvision==0.15.1+cu117 --index-url https://download.pytorch.org/whl/cu117
     ```
 
-5. Install python packages in `requirements.txt`.
+1. Install python packages in `requirements.txt`.
     ```bash
     $ pip install -r requirements.txt
     ```
 
-6. Download ALFRED dataset.
+1. Download ALFRED dataset.
     ```bash
     $ cd alfred/data
     $ sh download_data.sh json
