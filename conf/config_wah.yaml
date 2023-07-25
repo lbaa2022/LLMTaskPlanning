@@ -9,12 +9,12 @@ planner:
   ### EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B
   ### facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
   ### chainyo/alpaca-lora-7b, decapoda-research/llama-13b-hf
-  model_name: "EleutherAI/gpt-neo-125M"
+  model_name: "EleutherAI/gpt-neo-1.3B"
   max_steps: 20
   device: "cuda"
   scoring_batch_size: 8
   score_function: 'sum'
-  fast_mode: False
+  fast_mode: True
   use_action_failure_msg: False
   use_accelerate_device_map: False
   hf_auth_token: False
