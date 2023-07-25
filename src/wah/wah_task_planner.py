@@ -1,45 +1,106 @@
 from task_planner import TaskPlanner
-from wah.wah_utils import find_indefinite_article
+from wah.wah_utils import find_indefinite_article, divide_total_into_keys
 import json
+import random
 
 import pdb
 
 
 class WahTaskPlanner(TaskPlanner):
-    def init_prompt(self, prefix, example_file_path, num_examples="all", splitter=""):
-        with open(example_file_path, "r") as json_file:
-            examples = json.load(json_file)
+    def init_prompt(self, cfg):
+        ### Initialize with same number of examples for task type
+        prefix = cfg.prompt.prefix
+        example_file_path = cfg.prompt.example_file_path
+        num_examples = cfg.prompt.num_examples
+        splitter = cfg.prompt.splitter
+        seed = cfg.prompt.seed
+        select_method = cfg.prompt.select_method # Initialize the prompt with same number of examples for task type
         
-        if num_examples == "all":
-            init_prompt = f"{prefix}{splitter}"
-            for example in examples:
-                example_template = f"Human: {example['task_nl_des']}\nRobot:"
-                for step_id, step in enumerate(example['steps']):
-                    example_template += f" {step_id+1}. {step}"
-                    if step_id == len(example['steps'])-1:
-                        example_template += ".\n"
-                    else:
-                        example_template += ","
-                init_prompt += f"{example_template}{splitter}"
+        ### Load examples
+        with open(example_file_path, 'r') as file:
+            prompt_ex = json.load(file)
+
+        if select_method == "uniform":
+            task_name2task_d = self.get_task_name2task_d(prompt_ex)
+            selected_examples = self.select_examples_uniform(task_name2task_d, num_examples, seed)
+            prompt = self.make_prompt(prefix, splitter, selected_examples, seed)
+            
+        elif select_method == "same_task":
+            task_name2task_d = self.get_task_name2task_d(prompt_ex)
+            selected_examples_dict = {task_name: self.select_examples_same_task(task_name2task_d, num_examples, seed, task_name) for task_name in ['prepare_snack', 'prepare_food', 'setup_table', 'put_dishwasher', 'put_fridge']}
+            self.prompt_dict = {task_name: self.make_prompt(prefix, splitter, selected_examples_dict[task_name], seed) for task_name in ['prepare_snack', 'prepare_food', 'setup_table', 'put_dishwasher', 'put_fridge']}
+            prompt = None
+        elif select_method == "topk":
+            pdb.set_trace()
+            prompt = None
         else:
-            num_examples = int(num_examples)
-            examples = examples[:5*num_examples]
-            init_prompt = f"{prefix}{splitter}"
-            for example in examples:
-                example_template = f"Human: {example['task_nl_des']}\nRobot:"
-                for step_id, step in enumerate(example['steps']):
-                    example_template += f" {step_id+1}. {step}"
-                    if step_id == len(example['steps'])-1:
-                        example_template += ".\n"
-                    else:
-                        example_template += ","
-                init_prompt += f"{example_template}{splitter}"
-        return init_prompt
+            raise NotImplementedError()        
+        
+        return prompt
     
-    def reset(self, nl_act_list, nl_obj_list):
+    def get_task_name2task_d(self, prompt_ex):
+        task_name2task_d ={
+            'prepare_snack': [], 
+            'prepare_food': [], 
+            'setup_table': [],
+            'put_dishwasher': [],
+            'put_fridge': []
+            }
+        for ex_d in prompt_ex:
+            task_name2task_d[ex_d['task_name']].append(ex_d)
+        return task_name2task_d
+    
+    def select_examples_uniform(self, task_name2task_d, num_examples, seed):
+        task_names = list(task_name2task_d.keys())
+        task_per_num = divide_total_into_keys(task_names, num_examples)
+        
+        random.seed(seed)
+        selected_examples = []
+        for task_name in task_names:
+            num_task_ex = task_per_num[task_name]
+            selected_examples += random.sample(task_name2task_d[task_name], num_task_ex)
+        return selected_examples
+    
+    def select_examples_same_task(self, task_name2task_d, num_examples, seed, query_task_name):
+        random.seed(seed)
+        same_task_dataset = task_name2task_d[query_task_name]
+        selected_examples = random.sample(same_task_dataset, num_examples)
+        return selected_examples
+    
+    def select_examples_topk(self):
+        raise NotImplementedError()
+                      
+    def make_prompt(self, prefix, splitter, selected_examples, seed):
+        random.seed(seed)
+        random.shuffle(selected_examples)
+        prompt = f"{prefix}{splitter}"
+        
+        for task_d in selected_examples:
+            instruction = random.choice(task_d['nl_instructions'])        
+            prompt_for_example = f"Human: {instruction}\nRobot:"
+
+            for step_id, step in enumerate(task_d['task_plan']):
+                prompt_for_example += f" {step_id+1}. {step},"
+                
+            prompt_for_example += f" {step_id + 2}. done.\n"
+            prompt += f"{prompt_for_example}{splitter}"
+        
+        return prompt
+    
+    def reset(self, nl_act_list, nl_obj_list, task_d):
         self.nl_obj_list = nl_obj_list
         self.skill_set = self.init_skill_set(nl_act_list, nl_obj_list)
-    
+        # self.prompt = self.init_prompt(self.cfg, task_d)
+        if self.cfg.prompt.select_method == "uniform":
+            pass
+        elif self.cfg.prompt.select_method == "same_task":
+            query_task_name = task_d['task_name']
+            self.prompt = self.prompt_dict[query_task_name]
+        elif self.cfg.prompt.select_method == "topk":
+            pdb.set_trace()
+        else:
+            raise NotImplementedError()    
+ 
     def init_skill_set(self, nl_act_list, nl_obj_list):
         skill_set = ["done", "done.", "done.\n"]
         nl_all_objs = ['alcohol', 'amplifier', 'apple', 'balance ball', 'bananas', 'bar soap', 'bathroom', 'bathroom cabinet', 'bathroom counter', 'bathtub', 'bed', 'bedroom', 'bell pepper', 'bench', 'board game', 'book', 'bookshelf', 'bottled water', 'box', 'slice of bread', 'bucket', 'cabinet', 'candle', 'candy bar', 'carrot', 'ceiling', 'ceiling fan', 'ceilinglamp', 'cell phone', 'cereal', 'chair', 'chicken', 'Chinese food', 'chips', 'chocolate syrup', 'clock', 'closet', 'closet drawer', 'pants', 'pile of clothes', 'shirt', 'coat rack', 'coffee maker', 'coffee pot', 'coffee table', 'computer', 'condiment bottle', 'condiment shaker', 'cooking pot', 'cpu screen', 'crackers', 'crayons', 'creamy buns', 'cupcake', 'curtains', 'cutlery fork', 'cutlery knife', 'cutlets', 'cutting board', 'deodorant', 'desk', 'bowl', 'dishwasher', 'dishwashing liquid', 'door', 'doorjamb', 'face cream', 'faucet', 'floor', 'folder', 'fridge', 'frying pan', 'game', 'garbage can', 'glasses', 'globe', 'guitar', 'hair product', 'hanger', 'juice', 'keyboard', 'kitchen', 'kitchen cabinet', 'kitchen counter', 'kitchen counter drawer', 'kitchen table', 'knife block', 'light switch', 'lime', 'living room', 'longboard', 'lotion bottle', 'magazine', 'microwave oven', 'milk', 'milkshake', 'minced meat', 'mouse', 'mouse mat', 'mug', 'nightstand', 'notes', 'orchid', 'oven tray', 'painkillers', 'pancake', 'paper', 'paper tray', 'peach', 'pear', 'perfume', 'photo frame', 'pie', 'pillow', 'plate', 'plum', 'pound cake', 'power socket', 'printer', 'pudding', 'radio', 'remote control', 'rug', 'salad', 'salmod', 'shelf', 'sink', 'slippers', 'sofa', 'speaker', 'ball', 'stall', 'standing mirror', 'stove', 'stove fan', 'sundae', 'table lamp', 'teddy bear', 'toaster', 'toilet', 'toiletpaper', 'toothbrush', 'toothpaste', 'towel', 'towel rack', 'toy', 'tv', 'tv stand', 'vase', 'wall', 'wall lamp', 'wall phone', 'wall picture frame', 'wall shelf', 'washing machine', 'washing sponge', 'water glass', 'whipped cream', 'window', 'wine', 'wine glass']

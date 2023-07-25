@@ -69,8 +69,8 @@ class WahEvaluator(Evaluator):
                 nl_act_list = ["find", "go to", "grab", "open", "close", "switch on"]
                 
                 ### Reset planner
-                task_planner.reset(nl_act_list, nl_obj_list)
-                
+                # task_planner.reset(nl_act_list, nl_obj_list)
+                task_planner.reset(nl_act_list, nl_obj_list, task_d)
                 ### Reset environment
                 env.reset(task_d)
                 

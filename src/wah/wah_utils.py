@@ -280,6 +280,24 @@ def score_accomplish(final_state):
     for k, v in final_state.items():
         score += min(v[0], v[1])/v[1]
     return score
+
+
+###
+def divide_total_into_keys(keys, total):
+    if not keys or total <= 0:
+        return {}
+
+    num_keys = len(keys)
+    value_per_key = total // num_keys
+    remainder = total % num_keys
+
+    result_dict = {}
+    for i, key in enumerate(keys):
+        value = value_per_key + 1 if i < remainder else value_per_key
+        result_dict[key] = value
+
+    return result_dict
+
 ##############################################################################################################################
 
 
