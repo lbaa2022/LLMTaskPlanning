@@ -12,7 +12,7 @@ planner:
   model_name: "EleutherAI/gpt-neo-1.3B"
   max_steps: 20
   device: "cuda"
-  scoring_batch_size: 8
+  scoring_batch_size: 10
   score_function: 'sum'
   fast_mode: True
   use_action_failure_msg: False
@@ -20,19 +20,21 @@ planner:
   hf_auth_token: False
 
 prompt:
-  num_examples: 1
+  num_examples: 5
   splitter: ""
   prefix: "Robot: Hi there, I'm a robot operating in a home.\nRobot: You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task.\n"
-  example_file_path: "resource/prompt_manual2.json"  #"resource/prompt_manual.json"
+  example_file_path: "resource/wah_examples_for_prompt_default.json"  #"resource/prompt_manual.json"
+  seed: 0
+  select_method: "same_task" #"uniform"
 
 dataset:
   wah_testset: "dataset/wah_nl_test.json"
   wah_trainset: "dataset/wah_nl_train.json"
-  obj_dict_sim2nl: "resource/wah_corl_objects_sim2nl.json"
-  obj_dict_nl2sim: "resource/wah_corl_objects_nl2sim.json"
+  obj_dict_sim2nl: "resource/wah_objects_sim2nl.json"
+  obj_dict_nl2sim: "resource/wah_objects_nl2sim.json"
 
 experiment:
-  exp_name: "debugging_230628_batch_1"
+  exp_name: "benchmark_wah_nl"
 
 environment:
   observation_types: ['full']
