@@ -39,8 +39,6 @@ class TaskPlanner:
         print(f"Loading done\n")
 
         # Load prompt
-        # self.prompt = self.init_prompt(cfg.prompt.prefix, cfg.prompt.example_file_path,
-        #                                num_examples=cfg.prompt.num_examples, splitter=cfg.prompt.splitter)
         self.prompt = self.init_prompt(cfg)
 
     def reset(self, nl_act_list, nl_obj_list):
@@ -51,9 +49,6 @@ class TaskPlanner:
         self.skill_set = self.init_skill_set()
 
     def init_prompt(self, cfg):
-        raise NotImplementedError()
-    
-    def init_prompt(self, prefix, example_file_path, num_examples="all", splitter=""):
         raise NotImplementedError()
 
     def init_skill_set(self, nl_act_list, nl_obj_list):

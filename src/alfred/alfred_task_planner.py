@@ -34,10 +34,18 @@ class AlfredTaskPlanner(TaskPlanner):
                     'Shelf', 'ToiletPaperHanger', 'CoffeeTable', 'Cup', 'Plate', 'Bathtub', 'Bed', 'Dresser',
                     'Fridge', 'Microwave', 'CounterTop', 'Sink', 'GarbageCan']
 
-    def init_prompt(self, prefix, example_file_path, num_examples, splitter):
+    def init_prompt(self, cfg):
+        if cfg.planner.use_action_failure_msg:
+            # use predefined prompt
+            return self.load_prompt(cfg)
+
+        prefix = cfg.prompt.prefix
+        splitter = cfg.prompt.splitter
+        num_examples = cfg.prompt.num_examples
+
         # load examples
         examples = defaultdict(list)
-        with open(example_file_path, 'r') as f:
+        with open(cfg.prompt.example_file_path, 'r') as f:
             examples_json = json.load(f)
             for e in examples_json:
                 examples[e['task type']].append(e)

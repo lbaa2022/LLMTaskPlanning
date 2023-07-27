@@ -152,7 +152,7 @@ class ThorConnector(ThorEnv):
             ret_msg = f'Cannot find {target_obj}'
         else:
             # teleport sometimes fails even with reachable positions. if fails, repeat with the next closest reachable positions.
-            n_attempts = 10
+            max_attempts = 10
             teleport_success = False
 
             # get obj location
@@ -162,12 +162,17 @@ class ThorConnector(ThorEnv):
             # do not move if the object is already visible
             if objects[obj_idx]['visible']:
                 log.info('Object is already visible')
-                n_attempts = 0
+                max_attempts = 0
                 teleport_success = True
 
             # try teleporting
-            for i in range(n_attempts):
-                closest_loc = self.find_close_reachable_position([loc['x'], loc['y'], loc['z']], i + 1)
+            reachable_pos_idx = 0
+            for i in range(max_attempts):
+                reachable_pos_idx += 1
+                if i == 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):
+                    reachable_pos_idx -= 5
+
+                closest_loc = self.find_close_reachable_position([loc['x'], loc['y'], loc['z']], reachable_pos_idx)
 
                 # calculate desired rotation angle (see https://github.com/allenai/ai2thor/issues/806)
                 rot_angle = math.atan2(-(loc['x'] - closest_loc[0]), loc['z'] - closest_loc[2])
@@ -175,7 +180,7 @@ class ThorConnector(ThorEnv):
                     rot_angle -= 2 * math.pi
                 rot_angle = -(180 / math.pi) * rot_angle  # in degrees
 
-                if i < 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):  # not always correct
+                if i < 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):  # not always correct, but better than nothing
                     angle_diff = abs(self.angle_diff(rot_angle, obj_rot))
                     if target_obj == 'Fridge' and \
                             not ((90 - 20 < angle_diff < 90 + 20) or (270 - 20 < angle_diff < 270 + 20)):
@@ -221,7 +226,6 @@ class ThorConnector(ThorEnv):
                     obj['objectId'].split('|')[0].casefold() == obj_name.casefold() and \
                     (get_inherited is False or len(obj['objectId'].split('|')) == 5):
                 if obj["distance"] < min_distance:
-                    obj_id = obj["objectId"]
                     penalty_advantage = 0  # low priority for objects in closable receptacles such as fridge, microwave
                     if parent_receptacle_penalty and obj['parentReceptacles']:
                         for p in obj['parentReceptacles']:
@@ -245,6 +249,7 @@ class ThorConnector(ThorEnv):
                     if obj["distance"] + penalty_advantage < min_distance:
                         min_distance = obj["distance"] + penalty_advantage
                         obj_data = obj
+                        obj_id = obj["objectId"]
 
         return obj_id, obj_data
 
@@ -313,16 +318,14 @@ class ThorConnector(ThorEnv):
                     super().step(dict(action="MoveBack"))
                 elif j == 4:
                     super().step(dict(action="MoveAhead"))
-                    super().step(dict(action="MoveRight"))
-                    super().step(dict(action="MoveRight"))
+                    for r in range(4):
+                        super().step(dict(action="MoveRight"))
                 elif j == 5:
-                    super().step(dict(action="MoveLeft"))
-                    super().step(dict(action="MoveLeft"))
-                    super().step(dict(action="MoveLeft"))
-                    super().step(dict(action="MoveLeft"))
+                    for r in range(8):
+                        super().step(dict(action="MoveLeft"))
                 elif j == 6:
-                    super().step(dict(action="MoveRight"))
-                    super().step(dict(action="MoveRight"))
+                    for r in range(4):
+                        super().step(dict(action="MoveRight"))
                     super().step(dict(  # this somehow make putobject success in some cases
                         action="RotateHand",
                         x=40
