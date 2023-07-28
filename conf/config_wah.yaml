@@ -14,7 +14,7 @@ planner:
   device: "cuda"
   scoring_batch_size: 10
   score_function: 'sum'
-  fast_mode: True
+  scoring_mode: 'reuse_prompt'
   use_action_failure_msg: False
   use_accelerate_device_map: False
   hf_auth_token: False

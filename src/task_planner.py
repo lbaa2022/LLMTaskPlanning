@@ -1,6 +1,8 @@
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaForCausalLM
 from torch.nn import CrossEntropyLoss
+import guidance
+import logging
 
 
 class TaskPlanner:
@@ -11,7 +13,7 @@ class TaskPlanner:
         self.model_name = cfg.planner.model_name
         self.scoring_batch_size = cfg.planner.scoring_batch_size
         self.score_function = cfg.planner.score_function
-        self.fast_mode = cfg.planner.fast_mode
+        self.scoring_mode = cfg.planner.scoring_mode
         self.use_action_failure_msg = cfg.planner.use_action_failure_msg
 
         # Load pre-trained model
@@ -25,18 +27,32 @@ class TaskPlanner:
                 model_args['load_in_8bit'] = True
         model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
-        if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:  # these do not work well with automodel
-            self.model = LlamaForCausalLM.from_pretrained(**model_args)
-            self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
-        else:
-            self.model = AutoModelForCausalLM.from_pretrained(**model_args)
-            self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        if cfg.planner.scoring_mode == 'guidance':
+            model_args.pop('pretrained_model_name_or_path')
+            tokenizer = None
+            if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
+                tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
+            guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
+            self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
 
-        if not cfg.planner.use_accelerate_device_map:
-            self.model = self.model.to(self.device)
-        self.model.eval()
-        self.tokenizer.pad_token_id = 0
-        print(f"Loading done\n")
+            self.model = None
+            self.tokenizer = None
+
+            logging.getLogger("guidance").setLevel(logging.WARNING)
+
+        else:
+            if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:  # these do not work well with automodel
+                self.model = LlamaForCausalLM.from_pretrained(**model_args)
+                self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(**model_args)
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+            if not cfg.planner.use_accelerate_device_map:
+                self.model = self.model.to(self.device)
+            self.model.eval()
+            self.tokenizer.pad_token_id = 0
+            print(f"Loading done\n")
 
         # Load prompt
         self.prompt = self.init_prompt(cfg)
@@ -61,65 +77,72 @@ class TaskPlanner:
         scores = {}
         batch_skill_set_list = [skill_set[chunk:chunk + self.scoring_batch_size] for chunk in
                                 range(0, len(skill_set), self.scoring_batch_size)]
-        prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True)
-        if not self.cfg.planner.use_accelerate_device_map:
-            prompt_tokens = prompt_tokens.to(self.device)
-        prompt_len = prompt_tokens.attention_mask[0].sum().item()
 
-        for batch_skill_set in batch_skill_set_list:
-            batch_sentence = [f"{prompt} {skill}" for skill in batch_skill_set]
-            size_B = len(batch_skill_set)
-            if "alpaca" in self.model_name or "llama" in self.model_name:
-                batch_skill_set_for_model = batch_skill_set
-            else:
-                batch_skill_set_for_model = [f" {skill}" for skill in batch_skill_set]
+        if self.scoring_mode == 'guidance':
+            out = self.guidance_program(prompt=prompt, candidates=skill_set)
+            scores = out['score']
 
-            if self.fast_mode:
+        elif self.scoring_mode == 'reuse_prompt' or self.scoring_mode == 'naive':
+            prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True)
+            if not self.cfg.planner.use_accelerate_device_map:
+                prompt_tokens = prompt_tokens.to(self.device)
+            prompt_len = prompt_tokens.attention_mask[0].sum().item()
+
+            for batch_skill_set in batch_skill_set_list:
+                batch_sentence = [f"{prompt} {skill}" for skill in batch_skill_set]
+                size_B = len(batch_skill_set)
+                if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
+                    batch_skill_set_for_model = batch_skill_set
+                else:
+                    batch_skill_set_for_model = [f" {skill}" for skill in batch_skill_set]
+
                 with torch.no_grad():
-                    prompt_output = self.model(**prompt_tokens, use_cache=True)
-                    skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False,
-                                                  return_tensors="pt", padding=True)
-                    if not self.cfg.planner.use_accelerate_device_map:
-                        skill_tokens = skill_tokens.to(self.device)
-                    concat_attention_mask = torch.cat(
-                        (prompt_tokens.attention_mask.repeat(size_B, 1), skill_tokens.attention_mask), dim=1)
-                    batch_past_key_values = self.duplicate_past_key_values(prompt_output.past_key_values, size_B)
+                    if self.scoring_mode == 'reuse_prompt':
+                            prompt_output = self.model(**prompt_tokens, use_cache=True)
+                            skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False,
+                                                          return_tensors="pt", padding=True)
+                            if not self.cfg.planner.use_accelerate_device_map:
+                                skill_tokens = skill_tokens.to(self.device)
+                            concat_attention_mask = torch.cat(
+                                (prompt_tokens.attention_mask.repeat(size_B, 1), skill_tokens.attention_mask), dim=1)
+                            batch_past_key_values = self.duplicate_past_key_values(prompt_output.past_key_values, size_B)
 
-                    output = self.model(input_ids=skill_tokens.input_ids,
-                                        attention_mask=concat_attention_mask,
-                                        past_key_values=batch_past_key_values,
-                                        return_dict=True)
-                    prompt_last_logits = prompt_output.logits[:, -1:, :].repeat(size_B, 1, 1)  # [B, 1, C]
-                    logits = torch.cat((prompt_last_logits, output.logits[:, :-1, :]), dim=1)
-                    labels = skill_tokens.input_ids
-                    attention_mask = skill_tokens.attention_mask
-            else:
-                with torch.no_grad():
-                    sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt",
-                                                     padding=True)
-                    if not self.cfg.planner.use_accelerate_device_map:
-                        sentence_tokens = sentence_tokens.to(self.device)
-                    output = self.model(sentence_tokens.input_ids, attention_mask=sentence_tokens.attention_mask,
-                                        return_dict=True)
-                    logits = output.logits[:, prompt_len - 1:-1]
-                    labels = sentence_tokens.input_ids[:, prompt_len:]
-                    attention_mask = sentence_tokens.attention_mask[:, prompt_len:]
+                            output = self.model(input_ids=skill_tokens.input_ids,
+                                                attention_mask=concat_attention_mask,
+                                                past_key_values=batch_past_key_values,
+                                                return_dict=True)
+                            prompt_last_logits = prompt_output.logits[:, -1:, :].repeat(size_B, 1, 1)  # [B, 1, C]
+                            logits = torch.cat((prompt_last_logits, output.logits[:, :-1, :]), dim=1)
+                            labels = skill_tokens.input_ids
+                            attention_mask = skill_tokens.attention_mask
+                    elif self.scoring_mode == 'naive':
+                        with torch.no_grad():
+                            sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt",
+                                                             padding=True)
+                            if not self.cfg.planner.use_accelerate_device_map:
+                                sentence_tokens = sentence_tokens.to(self.device)
+                            output = self.model(sentence_tokens.input_ids, attention_mask=sentence_tokens.attention_mask,
+                                                return_dict=True)
+                            logits = output.logits[:, prompt_len - 1:-1]
+                            labels = sentence_tokens.input_ids[:, prompt_len:]
+                            attention_mask = sentence_tokens.attention_mask[:, prompt_len:]
 
-            with torch.no_grad():
-                size_B, size_L, size_C = logits.shape
-                logits = logits.reshape([size_B * size_L, size_C])
-                labels = labels.reshape([size_B * size_L])
-                loss_fn = CrossEntropyLoss(reduction='none')
-                loss = loss_fn(logits.float(), labels.long())
-                loss = loss.reshape([size_B, size_L])
-                skill_len = attention_mask.count_nonzero(axis=1)
-                if self.score_function == 'sum':
-                    score = -(loss * attention_mask).sum(axis=1)
-                elif self.score_function == 'avg':
-                    score = -(loss * attention_mask).sum(axis=1) / skill_len
+                    size_B, size_L, size_C = logits.shape
+                    logits = logits.reshape([size_B * size_L, size_C])
+                    labels = labels.reshape([size_B * size_L])
+                    loss_fn = CrossEntropyLoss(reduction='none')
+                    loss = loss_fn(logits.float(), labels.long())
+                    loss = loss.reshape([size_B, size_L])
+                    skill_len = attention_mask.count_nonzero(axis=1)
+                    if self.score_function == 'sum':
+                        score = -(loss * attention_mask).sum(axis=1)
+                    elif self.score_function == 'avg':
+                        score = -(loss * attention_mask).sum(axis=1) / skill_len
 
-            for skill_id, skill in enumerate(batch_skill_set):
-                scores[skill] = score[skill_id].item()
+                    for skill_id, skill in enumerate(batch_skill_set):
+                        scores[skill] = score[skill_id].item()
+        else:
+            assert False, 'unknown scoring mode'
         return scores
 
     def plan(self, query):

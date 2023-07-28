@@ -8,6 +8,6 @@ max_steps: 25
 random_seed: 1
 scoring_batch_size: 4
 score_function: 'sum'
-fast_mode: True
+scoring_mode: 'reuse_prompt'  # naive, reuse_prompt, guidance
 use_action_failure_msg: False  # NOTE: this uses a pre-written prompt
 hf_auth_token: ''  # NOTE: this is required for downloading the private model from HuggingFace
