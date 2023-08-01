@@ -15,7 +15,7 @@ planner:
   scoring_batch_size: 10
   score_function: 'sum'
   scoring_mode: 'reuse_prompt'
-  use_action_failure_msg: False
+  use_predefined_prompt: False
   use_accelerate_device_map: False
   hf_auth_token: False
 

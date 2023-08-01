@@ -14,7 +14,7 @@ class TaskPlanner:
         self.scoring_batch_size = cfg.planner.scoring_batch_size
         self.score_function = cfg.planner.score_function
         self.scoring_mode = cfg.planner.scoring_mode
-        self.use_action_failure_msg = cfg.planner.use_action_failure_msg
+        self.use_predefined_prompt = cfg.planner.use_predefined_prompt
 
         # Load pre-trained model
         print(f"Loading LLM and tokenizer: {self.model_name}")
@@ -188,7 +188,7 @@ class TaskPlanner:
         prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1. '
 
         for i, (step, msg) in enumerate(zip(prev_steps, prev_msgs)):
-            if self.use_action_failure_msg and len(msg) > 0:
+            if self.use_predefined_prompt and len(msg) > 0:
                 prompt += step + f' (this action failed: {msg.lower()}), {i + 2}. '
             else:
                 prompt += step + f', {i + 2}. '
