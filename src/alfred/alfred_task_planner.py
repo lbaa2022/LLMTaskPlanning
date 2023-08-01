@@ -35,7 +35,7 @@ class AlfredTaskPlanner(TaskPlanner):
                     'Fridge', 'Microwave', 'CounterTop', 'Sink', 'GarbageCan']
 
     def init_prompt(self, cfg):
-        if cfg.planner.use_action_failure_msg:
+        if cfg.planner.use_predefined_prompt:
             # use predefined prompt
             return self.load_prompt(cfg)
 
