@@ -102,7 +102,7 @@ class AlfredEvaluator(Evaluator):
         for e in results:
             if e['success']:
                 n_success += 1
-        log.info(f'success rate: {n_success / n * 100:.2f} %')
+        log.info(f'success rate: {n_success / n * 100:.2f} % ({n_success}/{n})')
         log.info(f'elapsed: {str(datetime.timedelta(seconds=(time.time() - start)))}')
 
     def evaluate_main(self, tasks, args_dict, planner, x_display, save_path):
@@ -212,6 +212,7 @@ class AlfredEvaluator(Evaluator):
 
         # check if goal was satisfied
         goal_satisfied = env.get_goal_satisfied()
+        log.info('target goal: ' + json.dumps(env.task.get_targets()))
         log.info('success: ' + str(goal_satisfied))
         if goal_satisfied:
             # print("Goal Reached")

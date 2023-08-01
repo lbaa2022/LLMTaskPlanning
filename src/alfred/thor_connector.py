@@ -61,8 +61,8 @@ class ThorConnector(ThorEnv):
         else:
             self.cur_receptacle = None
 
-        if instruction.startswith("find "):
-            obj_name = instruction.replace('find a ', '').replace('find an ', '')
+        if instruction.startswith("find ") or instruction.startswith("go to "):
+            obj_name = instruction.replace('find a ', '').replace('find an ', '').replace('go to the ', '')
             self.cur_receptacle = obj_name
             ret = self.nav_obj(natural_word_to_ithor_name(obj_name), self.sliced)
         elif instruction.startswith("pick up "):
@@ -152,15 +152,15 @@ class ThorConnector(ThorEnv):
             ret_msg = f'Cannot find {target_obj}'
         else:
             # teleport sometimes fails even with reachable positions. if fails, repeat with the next closest reachable positions.
-            max_attempts = 10
+            max_attempts = 20
             teleport_success = False
 
             # get obj location
             loc = objects[obj_idx]['position']
             obj_rot = objects[obj_idx]['rotation']['y']
 
-            # do not move if the object is already visible
-            if objects[obj_idx]['visible']:
+            # do not move if the object is already visible and close
+            if objects[obj_idx]['visible'] and objects[obj_idx]['distance'] < 1.0:
                 log.info('Object is already visible')
                 max_attempts = 0
                 teleport_success = True
@@ -169,8 +169,8 @@ class ThorConnector(ThorEnv):
             reachable_pos_idx = 0
             for i in range(max_attempts):
                 reachable_pos_idx += 1
-                if i == 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):
-                    reachable_pos_idx -= 5
+                if i == 10 and (target_obj == 'Fridge' or target_obj == 'Microwave'):
+                    reachable_pos_idx -= 10
 
                 closest_loc = self.find_close_reachable_position([loc['x'], loc['y'], loc['z']], reachable_pos_idx)
 
@@ -180,7 +180,7 @@ class ThorConnector(ThorEnv):
                     rot_angle -= 2 * math.pi
                 rot_angle = -(180 / math.pi) * rot_angle  # in degrees
 
-                if i < 5 and (target_obj == 'Fridge' or target_obj == 'Microwave'):  # not always correct, but better than nothing
+                if i < 10 and (target_obj == 'Fridge' or target_obj == 'Microwave'):  # not always correct, but better than nothing
                     angle_diff = abs(self.angle_diff(rot_angle, obj_rot))
                     if target_obj == 'Fridge' and \
                             not ((90 - 20 < angle_diff < 90 + 20) or (270 - 20 < angle_diff < 270 + 20)):
@@ -216,11 +216,14 @@ class ThorConnector(ThorEnv):
         return ret_msg
 
     def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, priority_sliced=False, get_inherited=False,
-                             parent_receptacle_penalty=True, priority_in_visibility=False):
+                             parent_receptacle_penalty=True, priority_in_visibility=False, exclude_obj_id=None):
         obj_id = None
         obj_data = None
         min_distance = 1e+8
         for obj in self.last_event.metadata['objects']:
+            if obj['objectId'] == exclude_obj_id:
+                continue
+
             if (only_pickupable is False or obj['pickupable']) and \
                     (only_toggleable is False or obj['toggleable']) and \
                     obj['objectId'].split('|')[0].casefold() == obj_name.casefold() and \
@@ -260,90 +263,106 @@ class ThorConnector(ThorEnv):
 
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to pick up'
-        elif obj_data['visible'] is False and obj_data['parentReceptacles'] is not None and len(obj_data['parentReceptacles']) > 0:
-            recep_name = obj_data["parentReceptacles"][0].split('|')[0]
-            ret_msg = f'{obj_name} is not visible because it is in {recep_name}'
         else:
-            super().step(dict(
-                action="PickupObject",
-                objectId=obj_id,
-                forceAction=True
-            ))
+            if obj_data['visible'] is False and obj_data['parentReceptacles'] is not None and len(obj_data['parentReceptacles']) > 0:
+                recep_name = obj_data["parentReceptacles"][0].split('|')[0]
+                ret_msg = f'{obj_name} is not visible because it is in {recep_name}'
 
-            if not self.last_event.metadata['lastActionSuccess']:
-                ret_msg = f'Cannot pick up {obj_name}'
+                # try anyway
+                super().step(dict(
+                    action="PickupObject",
+                    objectId=obj_id,
+                    forceAction=False
+                ))
+            else:
+                super().step(dict(
+                    action="PickupObject",
+                    objectId=obj_id,
+                    forceAction=False
+                ))
+
+                if not self.last_event.metadata['lastActionSuccess']:
+                    ret_msg = f'Cannot pick up {obj_name}'
+
+            if self.last_event.metadata['lastActionSuccess']:
+                ret_msg = ''
 
         return ret_msg
 
     def put(self, receptacle_name):
         # assume the agent always put the object currently holding
         ret_msg = ''
-        holding_obj_id = None
-        all_objects = self.last_event.metadata['objects']
-        for o in all_objects:
-            if o['isPickedUp']:
-                holding_obj_id = o['objectId']
-                break
 
-        if not holding_obj_id:
+        if len(self.last_event.metadata['inventoryObjects']) == 0:
             ret_msg = f'Robot is not holding any object'
             return ret_msg
+        else:
+            holding_obj_id = self.last_event.metadata['inventoryObjects'][0]['objectId']
 
         halt = False
-        for j in range(7):  # move/look around or rotate obj
-            for i in range(2):  # find an inherited receptacle (e.g., basin)
-                if i == 0:
-                    recep_id, _ = self.get_obj_id_from_name(receptacle_name)
-                else:
-                    recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True)
+        last_recep_id = None
+        exclude_obj_id = None
+        for k in range(2):  # try closest and next closest one
+            for j in range(7):  # move/look around or rotate obj
+                for i in range(2):  # try inherited receptacles too (e.g., sink basin, bath basin)
+                    if k == 1 and exclude_obj_id is None:
+                        exclude_obj_id = last_recep_id  # previous recep id
 
-                if not recep_id:
-                    ret_msg = f'Cannot find {receptacle_name}'
-                    continue
+                    if i == 0:
+                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, exclude_obj_id=exclude_obj_id)
+                    else:
+                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True, exclude_obj_id=exclude_obj_id)
 
-                log.info(f'put {holding_obj_id} on {recep_id}')
+                    if not recep_id:
+                        ret_msg = f'Cannot find {receptacle_name}'
+                        continue
 
-                # look up (put action fails when a receptacle is not visible)
-                if j == 1:
-                    super().step(dict(action="LookUp"))
-                    super().step(dict(action="LookUp"))
-                elif j == 2:
-                    super().step(dict(action="LookDown"))
-                    super().step(dict(action="LookDown"))
-                    super().step(dict(action="LookDown"))
-                    super().step(dict(action="LookDown"))
-                elif j == 3:
-                    super().step(dict(action="LookUp"))
-                    super().step(dict(action="LookUp"))
-                    super().step(dict(action="MoveBack"))
-                elif j == 4:
-                    super().step(dict(action="MoveAhead"))
-                    for r in range(4):
-                        super().step(dict(action="MoveRight"))
-                elif j == 5:
-                    for r in range(8):
-                        super().step(dict(action="MoveLeft"))
-                elif j == 6:
-                    for r in range(4):
-                        super().step(dict(action="MoveRight"))
-                    super().step(dict(  # this somehow make putobject success in some cases
-                        action="RotateHand",
-                        x=40
+                    log.info(f'put {holding_obj_id} on {recep_id}')
+
+                    # look up (put action fails when a receptacle is not visible)
+                    if j == 1:
+                        super().step(dict(action="LookUp"))
+                        super().step(dict(action="LookUp"))
+                    elif j == 2:
+                        super().step(dict(action="LookDown"))
+                        super().step(dict(action="LookDown"))
+                        super().step(dict(action="LookDown"))
+                        super().step(dict(action="LookDown"))
+                    elif j == 3:
+                        super().step(dict(action="LookUp"))
+                        super().step(dict(action="LookUp"))
+                        super().step(dict(action="MoveBack"))
+                    elif j == 4:
+                        super().step(dict(action="MoveAhead"))
+                        for r in range(4):
+                            super().step(dict(action="MoveRight"))
+                    elif j == 5:
+                        for r in range(8):
+                            super().step(dict(action="MoveLeft"))
+                    elif j == 6:
+                        for r in range(4):
+                            super().step(dict(action="MoveRight"))
+                        super().step(dict(  # this somehow make putobject success in some cases
+                            action="RotateHand",
+                            x=40
+                        ))
+
+                    super().step(dict(
+                        action="PutObject",
+                        objectId=holding_obj_id,
+                        receptacleObjectId=recep_id,
+                        forceAction=True
                     ))
+                    last_recep_id = recep_id
 
-                super().step(dict(
-                    action="PutObject",
-                    objectId=holding_obj_id,
-                    receptacleObjectId=recep_id,
-                    forceAction=True
-                ))
-
-                if not self.last_event.metadata['lastActionSuccess']:
-                    log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}, trying again...")
-                    ret_msg = f'Putting the object on {receptacle_name} failed'
-                else:
-                    ret_msg = ''
-                    halt = True
+                    if not self.last_event.metadata['lastActionSuccess']:
+                        log.warning(f"PutObject action failed: {self.last_event.metadata['errorMessage']}, trying again...")
+                        ret_msg = f'Putting the object on {receptacle_name} failed'
+                    else:
+                        ret_msg = ''
+                        halt = True
+                        break
+                if halt:
                     break
             if halt:
                 break

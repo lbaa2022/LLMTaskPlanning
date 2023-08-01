@@ -100,9 +100,13 @@ class AlfredTaskPlanner(TaskPlanner):
         skills = ['done']
 
         # find
-        for o in alfred_objs:
+        for o in set(alfred_pick_obj + alfred_slice_obj):
             article = find_indefinite_article(o)
             skills.append(f'find {article} {o}')
+
+        # go to
+        for o in set(alfred_open_obj + alfred_toggle_obj + alfred_recep):
+            skills.append(f'go to the {o}')
 
         # pick / put
         for o in alfred_pick_obj:
