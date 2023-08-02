@@ -1,13 +1,11 @@
-# EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B, EleutherAI/gpt-neox-20b
-# facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
 model_name: "EleutherAI/gpt-neo-1.3B"
-use_accelerate_device_map: False
+use_accelerate_device_map: True
 load_in_8bit: False
 device: 'cuda'
 max_steps: 25
 random_seed: 1
 scoring_batch_size: 4
 score_function: 'sum'
-scoring_mode: 'reuse_prompt'  # naive, reuse_prompt, guidance
+scoring_mode: 'guidance'  # naive, reuse_prompt, guidance
 use_predefined_prompt: False  # NOTE: This uses a pre-defined prompt, and you can put a failure message in the prompt.
 hf_auth_token: ''  # NOTE: this is required for downloading the private model from HuggingFace
