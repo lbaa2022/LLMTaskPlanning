@@ -39,8 +39,6 @@ class AlfredEvaluator(Evaluator):
         log.info(OmegaConf.to_yaml(cfg))
         global splits
 
-        random.seed(cfg.planner.random_seed)
-
         # llm planner
         if len(cfg.planner.model_name) > 0:
             planner = AlfredTaskPlanner(cfg)

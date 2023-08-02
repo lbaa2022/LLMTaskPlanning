@@ -1,3 +1,6 @@
+import random
+import numpy as np
+import torch
 import hydra
 from hydra.utils import instantiate
 
@@ -13,6 +16,12 @@ from wah.wah_evaluator import WahEvaluator
 @hydra.main(version_base=None, config_path="../conf", config_name="config")
 def main(cfg):
     print(cfg)
+
+    # set random seed
+    random.seed(cfg.planner.random_seed)
+    torch.manual_seed(cfg.planner.random_seed)
+    np.random.seed(cfg.planner.random_seed)
+
     if cfg.name == 'alfred':
         evaluator = AlfredEvaluator(cfg)
     elif cfg.name == 'wah':

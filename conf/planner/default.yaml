@@ -3,7 +3,7 @@ use_accelerate_device_map: True
 load_in_8bit: False
 device: 'cuda'
 max_steps: 25
-random_seed: 1
+random_seed: 0
 scoring_batch_size: 4
 score_function: 'sum'
 scoring_mode: 'guidance'  # naive, reuse_prompt, guidance
