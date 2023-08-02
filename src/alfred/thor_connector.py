@@ -39,16 +39,29 @@ class ThorConnector(ThorEnv):
         return free_positions, kd_tree
 
     def write_step_on_img(self, idx, description):
+        error_msg = self.llm_skill_interact(description)
         img = Image.fromarray(self.last_event.frame)
         text = str(idx) + ':' + description
         lines = textwrap.wrap(text, width=20)
         y_text = 6
         draw = ImageDraw.Draw(img)
+
         for line in lines:
             width, height = self.font.getsize(line)
             draw.text((6, y_text), line, font=self.font, fill=(255, 255, 255))
             y_text += height
+
+        # write error message in img
+        if not error_msg['success']:
+            text_msg = 'error : ' + error_msg['message']
+            lines = textwrap.wrap(text_msg, width=20)
+            for line in lines:
+                width, height = self.font.getsize(line)
+                draw.text((6, y_text + 6), line, font=self.font, fill=(255, 0, 0))
+                y_text += height
+                
         return img
+
 
     def find_close_reachable_position(self, loc, nth=1):
         d, i = self.reachable_position_kdtree.query(loc, k=nth + 1)
