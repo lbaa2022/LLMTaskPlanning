@@ -30,9 +30,13 @@ class TaskPlanner:
         if cfg.planner.scoring_mode == 'guidance':
             model_args.pop('pretrained_model_name_or_path')
             tokenizer = None
-            if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
-                tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
-            guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
+            if "OpenAI" in self.model_name:
+                openai_model_name = self.model_name.split('/')[1]
+                guidance.llm = guidance.llms.OpenAI(openai_model_name, api_key=cfg.planner.openai_api_key)
+            else:
+                if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
+                    tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
+                guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
             self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
 
             self.model = None
