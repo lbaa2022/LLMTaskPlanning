@@ -294,16 +294,14 @@ class ThorConnector(ThorEnv):
                     forceAction=False
                 ))
                 
-                if len(self.last_event.metadata['inventoryObjects']) == 0:
-                    ret_msg = f'Robot is not holding any object'
-                    return ret_msg
-                else:
-                    # check if the agent is holding the object
-                    holding_obj_id = self.last_event.metadata['inventoryObjects'][0]['objectId']
-                    holding_obj_type = self.last_event.metadata['inventoryObjects'][0]['objectType']
-                    if obj_id != holding_obj_id:
+                if not self.last_event.metadata['lastActionSuccess']:
+                    if len(self.last_event.metadata['inventoryObjects']) == 0:
+                        ret_msg = f'Robot is not holding any object'
+                    else:
+                        # check if the agent is holding the object
+                        holding_obj_id = self.last_event.metadata['inventoryObjects'][0]['objectId']
+                        holding_obj_type = self.last_event.metadata['inventoryObjects'][0]['objectType']
                         ret_msg = f'Robot is currently holding {holding_obj_type}'
-                        return ret_msg
 
             if self.last_event.metadata['lastActionSuccess']:
                 ret_msg = ''
