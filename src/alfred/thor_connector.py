@@ -38,28 +38,24 @@ class ThorConnector(ThorEnv):
         kd_tree = spatial.KDTree(free_positions)
         return free_positions, kd_tree
 
-    def write_step_on_img(self, idx, description):
-        error_msg = self.llm_skill_interact(description)
+    def write_step_on_img(self, cfg, idx, description):
         img = Image.fromarray(self.last_event.frame)
-        text = str(idx) + ':' + description
+        text = str(idx) + ':' + description['action']
         lines = textwrap.wrap(text, width=20)
         y_text = 6
         draw = ImageDraw.Draw(img)
-
         for line in lines:
             width, height = self.font.getsize(line)
             draw.text((6, y_text), line, font=self.font, fill=(255, 255, 255))
             y_text += height
-
-        # write error message in img
-        if not error_msg['success']:
-            text_msg = 'error : ' + error_msg['message']
-            lines = textwrap.wrap(text_msg, width=20)
-            for line in lines:
-                width, height = self.font.getsize(line)
-                draw.text((6, y_text + 6), line, font=self.font, fill=(255, 0, 0))
-                y_text += height
-                
+        if cfg is True:
+            if not description['success']:
+                text_msg = 'error : ' + description['message']
+                lines = textwrap.wrap(text_msg, width=20)
+                for line in lines:
+                    width, height = self.font.getsize(line)
+                    draw.text((6, y_text + 6), line, font=self.font, fill=(255, 0, 0))
+                    y_text += height
         return img
 
 
