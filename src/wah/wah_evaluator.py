@@ -119,12 +119,10 @@ class WahEvaluator(Evaluator):
             task_planner.update_skill_set(step, task_planner.nl_obj_list)
             
             ### Simualtion
-            # env.step(step, step_form='nl', instance=False)
             possible, feedback = env.step(step, step_form='nl', instance=False)
             log.info(f'{len(prev_steps)}. {step} ({possible})')
             ### TODO: NL feedback ######################################
             prev_action_msg.append('')
-            
             ### TODO: Visualization Save ################################
         
         ### Check goal
