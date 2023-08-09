@@ -43,7 +43,7 @@ environment:
   use_editor: True #TODO: Flase 로도 가능하게?
   base_port: 8080
   port_id: 1
-  executable_arge: {'file_name': "virtualhome/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "1"}
+  executable_args: {'file_name': "virtualhome/simulation/unity_simulator/linux_exec.x86_64", 'x_display': "1"}
   recording_options: {
     'recording': False, 
     'output_folder': '../../../figure', #{LLMTaskPlanner directory}/figure
