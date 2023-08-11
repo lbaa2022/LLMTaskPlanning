@@ -93,6 +93,7 @@ class ThorConnector(ThorEnv):
             if len(ret) > 0:
                 # if put down failed, then drop the object
                 ret = self.drop()
+                self.last_event.metadata['lastActionSuccess'] = False
 
         elif instruction.startswith("open "):
             obj_name = instruction.replace('open the ', '')
@@ -393,9 +394,12 @@ class ThorConnector(ThorEnv):
         ))
 
         if not self.last_event.metadata['lastActionSuccess']:
-            ret_msg = f"Drop action failed"
+            if len(self.last_event.metadata['inventoryObjects']) == 0:
+                ret_msg = f'Robot is not holding any object'
+            else:
+                ret_msg = f"Drop action failed"
         else:
-            ret_msg = ''
+            ret_msg = 'put down failed'
 
         return ret_msg
 
