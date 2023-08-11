@@ -74,8 +74,8 @@ class ThorConnector(ThorEnv):
         else:
             self.cur_receptacle = None
 
-        if instruction.startswith("find ") or instruction.startswith("go to "):
-            obj_name = instruction.replace('find a ', '').replace('find an ', '').replace('go to the ', '')
+        if instruction.startswith("find "):
+            obj_name = instruction.replace('find a ', '').replace('find an ', '')
             self.cur_receptacle = obj_name
             ret = self.nav_obj(natural_word_to_ithor_name(obj_name), self.sliced)
         elif instruction.startswith("pick up "):

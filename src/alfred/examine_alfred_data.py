@@ -145,7 +145,7 @@ def convert_low_level_action_to_nl_skill(action, args, cur_obj):
     if action == 'OpenObject':
         o = obj_id_to_nl(args['objectId'])
         if cur_obj != o:
-            steps.append(f'go to the {o}')
+            steps.append(f'find {find_indefinite_article(o)} {o}')
         ret_obj = o
         steps.append(f'open the {o}')
     elif action == 'CloseObject':
@@ -155,7 +155,7 @@ def convert_low_level_action_to_nl_skill(action, args, cur_obj):
     elif action == 'PutObject':
         o_recep = obj_id_to_nl(args['receptacleObjectId'])
         if cur_obj != o_recep:
-            steps.append(f'go to the {o_recep}')
+            steps.append(f'find {find_indefinite_article(o)} {o}')
         ret_obj = o_recep
         o = obj_id_to_nl(args['objectId'])
         steps.append(f'put down the {o}')
@@ -168,13 +168,13 @@ def convert_low_level_action_to_nl_skill(action, args, cur_obj):
     elif action == 'ToggleObjectOn':
         o = obj_id_to_nl(args['objectId'])
         if cur_obj != o:
-            steps.append(f'go to the {o}')
+            steps.append(f'find {find_indefinite_article(o)} {o}')
         ret_obj = o
         steps.append(f'turn on the {o}')
     elif action == 'ToggleObjectOff':
         o = obj_id_to_nl(args['objectId'])
         if cur_obj != o:
-            steps.append(f'go to the {o}')
+            steps.append(f'find {find_indefinite_article(o)} {o}')
         ret_obj = o
         steps.append(f'turn off the {o}')
     elif action == 'SliceObject':
