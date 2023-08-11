@@ -3,6 +3,12 @@ from collections import defaultdict
 from pathlib import Path
 import json
 
+import sys
+sys.path.insert(0, '.')
+sys.path.insert(0, '..')
+sys.path.insert(0, 'src')
+sys.path.insert(0, './alfred')
+
 from src.alfred.alfred_task_planner import AlfredTaskPlanner
 
 data_path = 'alfred/data/json_2.1.0'
@@ -155,7 +161,7 @@ def convert_low_level_action_to_nl_skill(action, args, cur_obj):
     elif action == 'PutObject':
         o_recep = obj_id_to_nl(args['receptacleObjectId'])
         if cur_obj != o_recep:
-            steps.append(f'find {find_indefinite_article(o)} {o}')
+            steps.append(f'find {find_indefinite_article(o_recep)} {o_recep}')
         ret_obj = o_recep
         o = obj_id_to_nl(args['objectId'])
         steps.append(f'put down the {o}')
