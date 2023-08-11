@@ -197,7 +197,7 @@ class AlfredEvaluator(Evaluator):
                 action_ret = env.llm_skill_interact(step_to_execute)
             except Exception as e:
                 log.warning(e)
-            imgs.append(env.write_step_on_img(t+1, step_to_execute))
+            imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t+1, action_ret))
             prev_action_msg.append(action_ret['message'])
 
             if not action_ret['success']:
