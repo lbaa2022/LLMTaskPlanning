@@ -72,11 +72,24 @@ class WahEnv(BaseUnityEnvironment):
         self.rooms = [(node['class_name'], node['id']) for node in graph['nodes'] if node['category'] == 'Rooms']
         self.id2node = {node['id']: node for node in graph['nodes']}
         self.steps = 0
+        self.cur_recep = None
 
     def step(self, step, step_form='sim', instance=False):
         if step_form == 'nl' and instance == False:
-            step_sim = utils.step_nl2sim(step, self.obj_dict_nl2sim)
+            if 'find' in step:
+                obj1_w_article = step.split("find ")[1]
+                if "a " in obj1_w_article:
+                    obj1_name = obj1_w_article.split("a ")[1]
+                elif "an " in obj1_w_article:
+                    obj1_name = obj1_w_article.split("an ")[1]
+                else:
+                    raise NotImplementedError
+                self.cur_recep = obj1_name
+            step_sim = utils.step_nl2sim(step, self.obj_dict_nl2sim, self.cur_recep)
             step = self.assign_id(step_sim, method="distance")
+        else:
+            ### TODO: self.cur_recep Update for step_form 'sim' Is Not Implemented
+            pass
         
         ##### TODO: NL Feedback Is Not Implemented
         possible, feedback = self.check_step(step)
@@ -194,7 +207,8 @@ class WahEnv(BaseUnityEnvironment):
         is_obj_close = utils.check_node_is_close_to_agent(graph, agent_id, obj_id)
         is_agent_free_hand = utils.check_free_hand(graph, agent_id)
         is_obj_off = 'OFF' in id2nodes[obj_id]['states']
-        return is_obj_hasswitch and is_obj_close and is_agent_free_hand and is_obj_off, None
+        is_obj_closed = 'CLOSED' in id2nodes[obj_id]['states']
+        return is_obj_hasswitch and is_obj_close and is_agent_free_hand and is_obj_off and is_obj_closed, None
     def check_switchoff(self, elements, graph, agent_id, id2nodes):
         ### Case 1. obj has_switch? 2. obj close? 3. agent has free hand? 4. obj on?
         obj_name, obj_id = elements[1], elements[2]

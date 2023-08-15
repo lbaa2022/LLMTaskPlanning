@@ -58,18 +58,14 @@ class WahEvaluator(Evaluator):
             obj_dict_sim2nl = json.load(file)
         with open(cfg.dataset.obj_dict_nl2sim, 'r') as file:
             obj_dict_nl2sim = json.load(file)
-        
+        nl_act_list = cfg.planner.nl_act_list
         results = []
         for i, task_d in tqdm(enumerate(test_set), total=len(test_set)):
-        # for i, task_d in tqdm(enumerate(test_set[:1]), total=len(test_set[:1])):
             try:
                 sim_obj_list = list(set([node['class_name'] for node in task_d['init_graph']['nodes']]))
                 nl_obj_list = [obj_dict_sim2nl[sim_obj] for sim_obj in sim_obj_list]
-                # nl_act_list = ["walk", "grab", "open", "close", "switch on"]
-                nl_act_list = ["find", "go to", "grab", "open", "close", "switch on"]
                 
                 ### Reset planner
-                # task_planner.reset(nl_act_list, nl_obj_list)
                 task_planner.reset(nl_act_list, nl_obj_list, task_d)
                 ### Reset environment
                 env.reset(task_d)

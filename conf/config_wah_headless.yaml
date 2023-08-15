@@ -7,11 +7,8 @@ defaults:
 out_dir: ${hydra:run.dir}
 
 planner:
-  ### EleutherAI/gpt-neo-125M, EleutherAI/gpt-neo-1.3B, EleutherAI/gpt-neo-2.7B, EleutherAI/gpt-j-6B
-  ### facebook/opt-350m, facebook/opt-2.7b, facebook/opt-30b, facebook/opt-66b
-  ### chainyo/alpaca-lora-7b, decapoda-research/llama-13b-hf
   model_name: "EleutherAI/gpt-neo-1.3B"
-  max_steps: 20
+  max_steps: 30
   device: "cuda"
   scoring_batch_size: 10
   score_function: 'sum'
@@ -20,6 +17,8 @@ planner:
   use_accelerate_device_map: True
   hf_auth_token: False
   random_seed: 0
+  nl_act_list: ["find", "pick up", "open", "close", "switch on", "put down"] 
+  dynamic_skill_set: False
 
 prompt:
   num_examples: 5
@@ -50,14 +49,3 @@ environment:
     'file_name_prefix': 'Test', 
     'cameras': ['PERSON_FROM_BACK']
   }
-
-  # max_episode_length: 120
-  # base_port: 8080
-  # port_id: 0
-  # executable_args: {'file_name': "virtualhome_wah/simulation/unity_simulator/linux_exec.x86_64"}
-  # recording_options: {
-  #   'recording': True, 
-  #   'output_folder': '/home/etri/code/LLMTaskPlanning/test', 
-  #   'file_name_prefix': 'Test', 
-  #   'cameras': ['PERSON_FROM_BACK']
-  # }

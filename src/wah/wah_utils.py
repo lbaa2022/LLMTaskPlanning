@@ -19,16 +19,28 @@ def separate_new_ids_graph(graph, max_id):
 
 
 ##### 
-def step_nl2sim(step_nl, obj_dict_nl2sim):
-    
-    if "put " in step_nl and " in " in step_nl:
-        obj1_name, obj2_name = step_nl.replace('put the ', '').split(' in the ')
+def step_nl2sim(step_nl, obj_dict_nl2sim, cur_recep):
+    if "put down" in step_nl:
+        nl_putin_objs = ['bathroom cabinet', 'bookshelf', 'box', 'cabinet', 'closet', 'pile of clothes', 'coffee maker', 'dishwasher', 'folder', 'fridge', 'frying pan', 'garbage can', 'kitchen cabinet', 'microwave oven', 'nightstand', 'printer', 'sink', 'stove', 'toaster', 'toilet', 'washing machine']
+        nl_putback_objs = ['bathroom cabinet', 'bathroom counter', 'bed', 'bench', 'board game', 'bookshelf', 'cabinet', 'chair', 'coffee table', 'cutting board', 'desk', 'floor', 'frying pan', 'kitchen cabinet', 'kitchen counter', 'kitchen table', 'mouse mat', 'nightstand', 'oven tray', 'plate', 'radio', 'rug', 'sofa', 'stove', 'towel rack']
+        obj1_name = step_nl.split("put down the ")[1]
+        if cur_recep == None:
+            obj2_name = obj1_name
+        else:
+            obj2_name = cur_recep
         obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
-        script = f"<char0> [putin] <{obj1_sim}> (1) <{obj2_sim}> (1)"
-    elif "put " in step_nl and " on " in step_nl:
-        obj1_name, obj2_name = step_nl.replace('put the ', '').split(' on the ')
-        obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
-        script = f"<char0> [putback] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+        if cur_recep in nl_putin_objs:
+            script = f"<char0> [putin] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+        else:
+            script = f"<char0> [putback] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+    # if "put " in step_nl and " in " in step_nl:
+    #     obj1_name, obj2_name = step_nl.replace('put the ', '').split(' in the ')
+    #     obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
+    #     script = f"<char0> [putin] <{obj1_sim}> (1) <{obj2_sim}> (1)"
+    # elif "put " in step_nl and " on " in step_nl:
+    #     obj1_name, obj2_name = step_nl.replace('put the ', '').split(' on the ')
+    #     obj1_sim, obj2_sim = obj_dict_nl2sim[obj1_name], obj_dict_nl2sim[obj2_name]
+    #     script = f"<char0> [putback] <{obj1_sim}> (1) <{obj2_sim}> (1)"
     else:
         if "find " in step_nl:
             action = "walk"
@@ -42,9 +54,9 @@ def step_nl2sim(step_nl, obj_dict_nl2sim):
         elif "go to" in step_nl:
             action = "walk"
             obj1_name = step_nl.split("go to the ")[1]
-        elif "grab " in step_nl:
+        elif "pick up " in step_nl:
             action = "grab"
-            obj1_name = step_nl.split("grab the ")[1]
+            obj1_name = step_nl.split("pick up the ")[1]
         elif "open " in step_nl:
             action = "open"
             obj1_name = step_nl.split("open the ")[1]
