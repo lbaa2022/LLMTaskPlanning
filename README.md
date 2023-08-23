@@ -82,6 +82,26 @@ $ cd {project_root}
 $ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B planner.score_function='sum' planner.fast_mode=True planner.scoring_batch_size=10 
 ```
 
+### Benchmarking on Watch-And-Help-NL Using Headless PC
+- Open a new terminal and run Xserver
+```bash
+$ cd {project}/virtualhome
+$ sudo python helper_scripts/startx.py $display_num
+```
+- Open another terminal and run unity simulator
+```bash
+$ cd {project}/virtualhome
+$ DISPLAY=:$display_num ./simulation/unity_simulator/linux_exec.x86_64 -batchmode
+```
+- Open another terminal and evaluate
+```bash
+$ cd {project_root}
+$ python src/evaluate.py --config-name=config_wah_headless
+```
+
+
+
+
 
 ## Extract train samples from ALFRED for language model finetuning
 
