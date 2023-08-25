@@ -2,6 +2,7 @@ from task_planner import TaskPlanner
 from wah.wah_utils import find_indefinite_article, divide_total_into_keys
 import json
 import random
+import torch
 
 import pdb
 
@@ -31,11 +32,13 @@ class WahTaskPlanner(TaskPlanner):
             self.prompt_dict = {task_name: self.make_prompt(prefix, splitter, selected_examples_dict[task_name], seed) for task_name in ['prepare_snack', 'prepare_food', 'setup_table', 'put_dishwasher', 'put_fridge']}
             prompt = None
         elif select_method == "topk":
-            pdb.set_trace()
+            from sentence_transformers import SentenceTransformer
+            self.sentence_emb_model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+            self.inst2_task_d_w_emb = self.get_inst2task_d_w_emb(prompt_ex)
             prompt = None
         else:
             raise NotImplementedError()        
-        
+
         return prompt
     
     def get_task_name2task_d(self, prompt_ex):
@@ -50,6 +53,23 @@ class WahTaskPlanner(TaskPlanner):
             task_name2task_d[ex_d['task_name']].append(ex_d)
         return task_name2task_d
     
+    def get_inst2task_d_w_emb(self, prompt_ex):
+        inst2task_d = {}
+        for ex in prompt_ex:
+            nl_instructions = ex['nl_instructions']
+            for nl_instruction in nl_instructions:
+                inst2task_d[nl_instruction] = ex
+        
+        from sentence_transformers import SentenceTransformer
+        sentences = list(inst2task_d.keys())
+        model = self.sentence_emb_model
+        embeddings = model.encode(sentences, convert_to_tensor=True)
+        for i, sentence in enumerate(sentences):
+            embedding = embeddings[i]
+            inst2task_d[sentence]['embedding'] = embedding.cpu()
+        return inst2task_d
+
+
     def select_examples_uniform(self, task_name2task_d, num_examples, seed):
         task_names = list(task_name2task_d.keys())
         task_per_num = divide_total_into_keys(task_names, num_examples)
@@ -67,8 +87,12 @@ class WahTaskPlanner(TaskPlanner):
         selected_examples = random.sample(same_task_dataset, num_examples)
         return selected_examples
     
-    def select_examples_topk(self):
-        raise NotImplementedError()
+    def select_examples_topk(self, nl_instruction):
+        inst_emb = self.sentence_emb_model.encode(nl_instruction, convert_to_tensor=True).cpu()
+        num_exs = self.cfg.prompt.num_examples
+        similarities = {nl_inst: torch.dot(inst_emb, self.inst2_task_d_w_emb[nl_inst]['embedding']).item() for nl_inst in list(self.inst2_task_d_w_emb.keys())}
+        sorted_keys = sorted(similarities, key=lambda k: similarities[k], reverse=True)
+        return sorted_keys[:num_exs]
                       
     def make_prompt(self, prefix, splitter, selected_examples, seed):
         random.seed(seed)
@@ -87,7 +111,7 @@ class WahTaskPlanner(TaskPlanner):
         
         return prompt
     
-    def reset(self, nl_act_list, nl_obj_list, task_d):
+    def reset(self, nl_act_list, nl_obj_list, task_d, nl_instruction):
         self.nl_obj_list = nl_obj_list
         self.skill_set = self.init_skill_set(nl_act_list, nl_obj_list)
         # self.prompt = self.init_prompt(self.cfg, task_d)
@@ -97,7 +121,9 @@ class WahTaskPlanner(TaskPlanner):
             query_task_name = task_d['task_name']
             self.prompt = self.prompt_dict[query_task_name]
         elif self.cfg.prompt.select_method == "topk":
-            pdb.set_trace()
+            topk_instructions = self.select_examples_topk(nl_instruction)
+            selected_examples = [self.inst2_task_d_w_emb[instruction] for instruction in topk_instructions]
+            self.prompt = self.make_prompt(self.cfg.prompt.prefix, self.cfg.prompt.splitter, selected_examples, self.cfg.prompt.seed)
         else:
             raise NotImplementedError()    
  

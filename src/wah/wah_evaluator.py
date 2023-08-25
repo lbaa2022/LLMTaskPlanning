@@ -65,15 +65,15 @@ class WahEvaluator(Evaluator):
                 sim_obj_list = list(set([node['class_name'] for node in task_d['init_graph']['nodes']]))
                 nl_obj_list = [obj_dict_sim2nl[sim_obj] for sim_obj in sim_obj_list]
                 
-                ### Reset planner
-                task_planner.reset(nl_act_list, nl_obj_list, task_d)
-                ### Reset environment
-                env.reset(task_d)
-                
                 ### Select NL instruction
                 random.seed(0)
                 nl_instruction = random.choice(task_d['nl_instructions'])
                 log.info(nl_instruction)
+
+                ### Reset planner
+                task_planner.reset(nl_act_list, nl_obj_list, task_d, nl_instruction)
+                ### Reset environment
+                env.reset(task_d)
                 
                 ### Task planning and simulation
                 result = self.evaluate_task(task_planner, env, nl_instruction, task_d, log_prompt=False)
