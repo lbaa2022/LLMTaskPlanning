@@ -85,11 +85,7 @@ class TaskPlanner:
                                 range(0, len(skill_set), self.scoring_batch_size)]
 
         if self.scoring_mode == 'guidance':
-            n_try = 5
-            for _ in range(n_try):
-                out = self.guidance_program(prompt=prompt, candidates=skill_set)
-                if 'score' in out:
-                    break
+            out = self.guidance_program(prompt=prompt, candidates=skill_set)
             scores = out['score']
 
         elif self.scoring_mode == 'reuse_prompt' or self.scoring_mode == 'naive':
