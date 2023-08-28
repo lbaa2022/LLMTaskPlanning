@@ -36,8 +36,8 @@ class TaskPlanner:
             else:
                 if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
                     tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
-                if "bigscience/bloom" in self.model_name:
-                    model_args['max_memory'] = {0: '60GB', 1: '80GB', 2: '48GB', 3: '48GB'}
+                if "bigscience/bloom" == self.model_name:  # bloom 175B
+                    model_args['max_memory'] = {0: '60GB', 1: '80GB', 2: '48GB', 3: '48GB', 4: '48GB'}
                 guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
             self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
 
