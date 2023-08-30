@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 from collections import defaultdict
+import argparse
 
 
 def get_json_files(path):
@@ -18,8 +19,7 @@ def get_json_data(path, file):
     return data
 
 
-def main():
-    path = '../results/results_gpt-j-6B_seed0'
+def main(path):
     files = get_json_files(path)
     data = []
     for file in files:
@@ -40,4 +40,8 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("result_path", type=str)
+    p = parser.parse_args()
+
+    main(p.result_path)
