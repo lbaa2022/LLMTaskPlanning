@@ -76,9 +76,12 @@ class WahTaskPlanner(TaskPlanner):
         
         random.seed(seed)
         selected_examples = []
-        for task_name in task_names:
-            num_task_ex = task_per_num[task_name]
-            selected_examples += random.sample(task_name2task_d[task_name], num_task_ex)
+        if num_examples == 0:
+            pass
+        else:
+            for task_name in task_names:
+                num_task_ex = task_per_num[task_name]
+                selected_examples += random.sample(task_name2task_d[task_name], num_task_ex)
         return selected_examples
     
     def select_examples_same_task(self, task_name2task_d, num_examples, seed, query_task_name):
