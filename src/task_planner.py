@@ -16,6 +16,10 @@ class TaskPlanner:
         self.scoring_mode = cfg.planner.scoring_mode
         self.use_predefined_prompt = cfg.planner.use_predefined_prompt
 
+        self.use_gpt_chat_model = False
+        if self.model_name == "OpenAI/gpt-3.5-turbo" or self.model_name == "OpenAI/gpt-4":
+            self.use_gpt_chat_model = True
+
         # Load pre-trained model
         print(f"Loading LLM and tokenizer: {self.model_name}")
 
@@ -39,7 +43,18 @@ class TaskPlanner:
                 if "bigscience/bloom" == self.model_name:  # bloom 175B
                     model_args['max_memory'] = {0: '60GB', 1: '80GB', 2: '48GB', 3: '48GB', 4: '48GB'}
                 guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
-            self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
+
+            if self.use_gpt_chat_model:
+                with open(cfg.prompt.chat_guidance_program) as f:
+                    prompt = f.read()
+                    # print(prompt)
+                    # print(prompt[-1])
+                    # print(type(prompt))
+                    # print(ord(prompt[-1]))
+                    # exit()
+                self.guidance_program = guidance(prompt)
+            else:
+                self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
 
             self.model = None
             self.tokenizer = None
@@ -85,7 +100,16 @@ class TaskPlanner:
                                 range(0, len(skill_set), self.scoring_batch_size)]
 
         if self.scoring_mode == 'guidance':
-            out = self.guidance_program(prompt=prompt, candidates=skill_set)
+            if self.use_gpt_chat_model:
+                # extract query and step_prefix
+                prompt_lines = prompt.splitlines()
+                query = prompt_lines[-2].replace('Human: ', '')
+                print('Query:', query)
+                step_prefix = prompt_lines[-1].replace('Robot: ', '')
+                print('Step prefix:', step_prefix)
+                out = self.guidance_program(query=query, step_prefix=step_prefix, candidates=skill_set)
+            else:
+                out = self.guidance_program(prompt=prompt, candidates=skill_set)
             scores = out['score']
 
         elif self.scoring_mode == 'reuse_prompt' or self.scoring_mode == 'naive':

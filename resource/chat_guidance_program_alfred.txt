@@ -1,0 +1,40 @@
+{{#system~}}
+Hi there, I'm a robot operating in a home.
+You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task.
+{{~/system}}
+{{#user~}}
+Put a spoon in the sink.
+{{~/user}}
+{{#assistant~}}
+1. find a ladle, 2. pick up the ladle, 3. find a sink, 4. put down the ladle, 5. done.
+{{~/assistant}}
+{{#user~}}
+Pick up a tennis racket and turn on a lamp.
+{{~/user}}
+{{#assistant~}}
+1. find a tennis racket, 2. pick up the tennis racket, 3. find a desk lamp, 4. turn on the desk lamp, 5. done.
+{{~/assistant}}
+{{#user~}}
+Put a chilled wine bottle in the left cabinet under the sink.
+{{~/user}}
+{{#assistant~}}
+1. find a wine bottle, 2. pick up the wine bottle, 3. find a fridge, 4. open the fridge, 5. put down the wine bottle, 6. close the fridge, 7. open the fridge, 8. find a wine bottle, 9. pick up the wine bottle, 10. close the fridge, 11. find a cabinet, 12. open the cabinet, 13. put down the wine bottle, 14. close the cabinet, 15. done.
+{{~/assistant}}
+{{#user~}}
+Put a clean rag into the cabinet.
+{{~/user}}
+{{#assistant~}}
+1. find a cloth, 2. pick up the cloth, 3. find a sink, 4. put down the cloth, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find a cloth, 9. pick up the cloth, 10. find a cabinet, 11. open the cabinet, 12. put down the cloth, 13. close the cabinet, 14. done.
+{{~/assistant}}
+{{#user~}}
+Put a bowl with a pencil in it on the tv stand.
+{{~/user}}
+{{#assistant~}}
+1. find a pencil, 2. pick up the pencil, 3. find a bowl, 4. put down the pencil, 5. pick up the bowl, 6. find a dresser, 7. put down the bowl, 8. done.
+{{~/assistant}}
+{{#user~}}
+{{query}}
+{{~/user}}
+{{#assistant~}}
+{{step_prefix}}{{select 'step' options=candidates logprobs='score'}}
+{{~/assistant}}
