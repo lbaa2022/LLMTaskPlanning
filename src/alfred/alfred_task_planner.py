@@ -54,8 +54,9 @@ class AlfredTaskPlanner(TaskPlanner):
         # task_types = ['pick_and_place_simple', 'look_at_obj_in_light', 'pick_two_obj_and_place',
         #               'pick_cool_then_place_in_recep',
         #               'pick_clean_then_place_in_recep', 'pick_and_place_with_movable_recep']
-        task_types = ['pick_and_place_simple', 'look_at_obj_in_light', 'pick_cool_then_place_in_recep',
-                      'pick_clean_then_place_in_recep', 'pick_and_place_with_movable_recep']
+        task_types = ['pick_and_place_simple', 'look_at_obj_in_light', 
+                      'pick_and_place_with_movable_recep', 'pick_cool_then_place_in_recep', 
+                      'pick_heat_then_place_in_recep', 'pick_clean_then_place_in_recep']
         num_examples_per_task_max = 10
         num_examples_per_task = int(cfg.prompt.num_examples / len(task_types))
         assert num_examples_per_task < num_examples_per_task_max
