@@ -100,7 +100,18 @@ $ python src/evaluate.py --config-name=config_wah_headless
 ```
 
 
+## Extensions
 
+### In-context example selection
+```bash
+$ python src/evaluate.py --config-name=config_wah prompt.select_method=same_task
+$ python src/evaluate.py --config-name=config_wah prompt.select_method=topk
+```
+
+### Replanning
+```bash
+$ python src/evaluate.py --config-name=config_wah planner.use_predefined_prompt=True
+```
 
 
 ## Extract train samples from ALFRED for language model finetuning

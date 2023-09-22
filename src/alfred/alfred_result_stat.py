@@ -32,8 +32,11 @@ def main(path):
     # calculate stats
     for key in data_by_type:
         print(key)
-        print('number of trials: {}'.format(len(data_by_type[key])))
-        print('success rate: {:.2f}'.format(np.mean([d['success'] for d in data_by_type[key]])*100))
+        n = len(data_by_type[key])
+        print(f'number of trials: {n}')
+        n_success = np.sum([d["success"] for d in data_by_type[key]])
+        print(f'success rate: {np.mean([d["success"] for d in data_by_type[key]])*100:.2f} ({n_success}/{n})')
+        print('')
 
     # total stat
     print('total success rate: {:.2f}'.format(np.mean([d['success'] for d in data]) * 100))
