@@ -110,7 +110,7 @@ $ python src/evaluate.py --config-name=config_wah prompt.select_method=topk
 
 ### Replanning
 ```bash
-$ python src/evaluate.py --config-name=config_wah planner.use_predefined_prompt=True
+$ python src/evaluate.py --config-name=config_alfred planner.use_predefined_prompt=True
 ```
 
 
