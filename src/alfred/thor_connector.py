@@ -90,7 +90,7 @@ class ThorConnector(ThorEnv):
                 receptacle = self.cur_receptacle
                 ret = self.put(natural_word_to_ithor_name(receptacle))
 
-            if len(ret) > 0:
+            if len(ret) > 16:
                 # if put down failed, then drop the object
                 ret = self.drop()
                 self.last_event.metadata['lastActionSuccess'] = False
