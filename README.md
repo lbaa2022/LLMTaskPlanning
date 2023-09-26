@@ -1,4 +1,6 @@
-# Benchmarking LLM-based Task Planners
+# LoTa-Bench: Benchmarking Language-oriented Task Planners for Embodied Agents
+
+We introduce a system for automatically quantifying performance of task planning for home-service agents. Task planners are tested on two pairs of datasets and simulators: 1) ALFRED and AI2-THOR, 2) an extension of Watch-And-Help and VirtualHome. Using the proposed benchmark system, we perform extensive experiments with LLMs and prompts, and explore several extentions of the baseline planner.
 
 ## Environment
 
@@ -30,15 +32,16 @@ You can use WSL-Ubuntu on Windows 10/11.
     $ pip install -r requirements.txt
     ```
 
-1. Download ALFRED dataset.
-    ```bash
-    $ cd alfred/data
-    $ sh download_data.sh json
-    ```
-
 
 ## Benchmarking on ALFRED
 
+### Download ALFRED dataset.
+```bash
+$ cd alfred/data
+$ sh download_data.sh json
+```
+
+### Benchmarking
 ```bash
 $ python src/evaluate.py --config-name=config_alfred
 ```
@@ -48,6 +51,15 @@ You can override the configuration. We used [Hydra](https://hydra.cc/) for confi
 ```bash
 $ python evaluate.py --config-name=config_alfred planner.model=EleutherAI/gpt-neo-125M
 $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
+$ python evaluate.py --config-name=config_alfred alfred.eval_portion_in_percent=100 prompt.num_examples=18
+```
+
+### Headless Server
+
+Please run `startx.py` script before running ALFRED experiment on headless servers. Below script uses 1 for the X_DISPLAY id, but you can use different ids such as 0.
+
+```bash
+$ sudo python3 alfred/scripts/startx.py 1
 ```
 
 
@@ -79,7 +91,7 @@ $ python src/evaluate.py --config-name=config_wah
 
 ```bash
 $ cd {project_root}
-$ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B planner.score_function='sum' planner.fast_mode=True planner.scoring_batch_size=10 
+$ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B prompt.num_examples=10
 ```
 
 ### Benchmarking on Watch-And-Help-NL Using Headless PC
@@ -123,6 +135,11 @@ $ python src/misc/extract_alfred_train_samples.py
 ```
 
 
+## WAH-NL Dataset
+
+You can find the WAH-NL data, which is our extension of WAH, in `./dataset` folder.
+
+
 ## FAQ
 
 * Running out of disk space for Huggingface models
@@ -137,9 +154,3 @@ $ python src/misc/extract_alfred_train_samples.py
     $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
     ```
 
-
-* Please use `startx.py` script to run ALFRED experiment on headless servers.
-
-    ```bash
-    $ sudo python3 alfred/scripts/startx.py 1
-    ```
