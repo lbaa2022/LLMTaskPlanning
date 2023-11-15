@@ -158,9 +158,9 @@ class TaskPlanner:
         print(f"Input query: {query}")
 
         prompt_lines = self.prompt.split('\n')
-        prompt_examples = prompt_lines[3:]
+        prompt_examples = prompt_lines[2:]
         example_text = '\n'.join(prompt_examples)
-        skills_text = ', '.join(self.skill_set)
+        skills_text = ', '.join([x.strip() for x in self.skill_set])
 
         self.guidance_program = guidance("""
         {{#system~}}
