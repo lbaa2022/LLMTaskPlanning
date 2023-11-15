@@ -164,58 +164,100 @@ class AlfredEvaluator(Evaluator):
         reward = 0
         imgs = [Image.fromarray(env.last_event.frame)]
 
-        prev_steps = []
-        prev_action_msg = []
-        while not done:
-            if self.cfg.alfred.eval_set == 'train' and train_gt_steps is not None:
-                # sanity check for thor connector: use ground-truth steps
-                if t >= len(train_gt_steps[traj_data['task_id']]):
-                    step = 'done'
+        step_by_step_mode = False
+        if step_by_step_mode:
+            prev_steps = []
+            prev_action_msg = []
+            while not done:
+                if self.cfg.alfred.eval_set == 'train' and train_gt_steps is not None:
+                    # sanity check for thor connector: use ground-truth steps
+                    if t >= len(train_gt_steps[traj_data['task_id']]):
+                        step = 'done'
+                    else:
+                        step = train_gt_steps[traj_data['task_id']][t]
+                    prompt = ''
                 else:
-                    step = train_gt_steps[traj_data['task_id']][t]
-                prompt = ''
-            else:
-                # find next step
-                step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
-                if step is None:
-                    log.info("\tmax step reached")
+                    # find next step
+                    step, prompt = planner.plan_step_by_step(instruction_text, prev_steps, prev_action_msg)
+                    if step is None:
+                        log.info("\tmax step reached")
+                        break
+
+                if log_prompt:
+                    log.info(prompt)
+                log.info(f'{len(prev_steps) + 1}. {step}')
+                prev_steps.append(step)
+
+                if step in ['done', 'done.', 'done.\n']:
+                    done = True
+                    prev_action_msg.append('')
                     break
+
+                # execute
+                step_to_execute = step
+                try:
+                    action_ret = env.llm_skill_interact(step_to_execute)
+                except Exception as e:
+                    log.warning(e)
+                imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t+1, action_ret))
+                prev_action_msg.append(action_ret['message'])
+
+                if not action_ret['success']:
+                    print(action_ret['message'])
+
+                # next time-step
+                t_reward, t_done = env.get_transition_reward()
+                reward += t_reward
+                t += 1
+
+            # check if goal was satisfied
+            goal_satisfied = env.get_goal_satisfied()
+            log.info('target goal: ' + json.dumps(env.task.get_targets()))
+            log.info('success: ' + str(goal_satisfied))
+            if goal_satisfied:
+                # print("Goal Reached")
+                success = True
+                # exit()
+
+        else:
+
+            steps, prompt = planner.plan_whole(instruction_text)
+            prev_steps = steps
 
             if log_prompt:
                 log.info(prompt)
-            log.info(f'{len(prev_steps) + 1}. {step}')
-            prev_steps.append(step)
 
-            if step in ['done', 'done.', 'done.\n']:
-                done = True
-                prev_action_msg.append('')
-                break
+            for si, step in enumerate(steps):
+                log.info(f'{si + 1}. {step}')
 
-            # execute
-            step_to_execute = step
-            try:
-                action_ret = env.llm_skill_interact(step_to_execute)
-            except Exception as e:
-                log.warning(e)
-            imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t+1, action_ret))
-            prev_action_msg.append(action_ret['message'])
+                if step in ['done', 'done.', 'done.\n']:
+                    done = True
+                    break
 
-            if not action_ret['success']:
-                print(action_ret['message'])
+                # execute
+                step_to_execute = step
+                try:
+                    action_ret = env.llm_skill_interact(step_to_execute)
+                except Exception as e:
+                    log.warning(e)
+                imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t + 1, action_ret))
 
-            # next time-step
-            t_reward, t_done = env.get_transition_reward()
-            reward += t_reward
-            t += 1
+                if not action_ret['success']:
+                    print(action_ret['message'])
 
-        # check if goal was satisfied
-        goal_satisfied = env.get_goal_satisfied()
-        log.info('target goal: ' + json.dumps(env.task.get_targets()))
-        log.info('success: ' + str(goal_satisfied))
-        if goal_satisfied:
-            # print("Goal Reached")
-            success = True
-            # exit()
+                # next time-step
+                t_reward, t_done = env.get_transition_reward()
+                reward += t_reward
+                t += 1
+
+            # check if goal was satisfied
+            goal_satisfied = env.get_goal_satisfied()
+            log.info('target goal: ' + json.dumps(env.task.get_targets()))
+            log.info('success: ' + str(goal_satisfied))
+            if goal_satisfied:
+                # print("Goal Reached")
+                success = True
+                # exit()
 
         # record results
         log_entry = {'trial': traj_data['task_id'],

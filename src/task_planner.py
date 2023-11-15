@@ -151,39 +151,48 @@ class TaskPlanner:
             assert False, 'unknown scoring mode'
         return scores
 
-    def plan(self, query):
+    def plan_whole(self, query):
         step_seq = []
         skill_set_size_seq = []
-        prompt = self.prompt + f'Human: {query}\nRobot: 1.'
+        # prompt = self.prompt + f'Human: {query}\nRobot: 1.'
         print(f"Input query: {query}")
 
-        # Scoring
-        for step in range(self.max_steps):
-            # Make batch
-            skill_set = self.skill_set
+        prompt_lines = self.prompt.split('\n')
+        prompt_examples = prompt_lines[3:]
+        example_text = '\n'.join(prompt_examples)
+        skills_text = ', '.join(self.skill_set)
 
-            # Save skill set size
-            skill_set_size_seq.append(len(skill_set))
+        self.guidance_program = guidance("""
+        {{#system~}}
+        You are a robot operating in a home. A human user can ask you to do various tasks and you are supposed to tell the sequence of actions you would do to accomplish your task.
+        {{~/system}}
+        
+        {{#user~}}
+        Examples of human instructions and possible your (robot) answers:
+        {{example_text}}
+        
+        Now please answer the sequence of actions for the input instruction.
+        You should use one of actions of this list: {{skills_text}}.
+        List the actions with comma seperator.
+        
+        Input user instruction:   
+        {{query}}
+        {{~/user}}
+        
+        {{#assistant~}}
+        {{gen 'answer' temperature=0 max_tokens=500}}
+        {{~/assistant}}
+        """)
 
-            # Scoring
-            scores = self.score(prompt, skill_set)
+        # run
+        out = self.guidance_program(example_text=example_text, skills_text=skills_text, query=query)
+        answer = out['answer']
+        print(answer)
 
-            # Select best skill
-            results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-            best_step = results[0][0]
-            step_seq.append(best_step.strip())
-            print(f'{step + 1}. {best_step}')
-
-            # Stop criteria
-            if best_step in ['done', 'done.', 'done.\n']:
-                prompt += f" {best_step}."
-                break
-
-            # Update skill set
-            self.update_skill_set(best_step, self.nl_obj_list)
-
-            # Update prompt
-            prompt += f" {best_step}, {step + 2}."
+        # to list
+        answer = answer.replace('Robot: ', '')
+        actions = [action.strip(' 1234567890.') for action in answer.split(',')]
+        step_seq = actions
 
         return step_seq, skill_set_size_seq
 
