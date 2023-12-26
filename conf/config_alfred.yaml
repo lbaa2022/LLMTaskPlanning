@@ -15,4 +15,5 @@ prompt:
 alfred:
   x_display: '0'
   eval_set: 'valid_seen'  # valid_seen, valid_unseen
-  eval_portion_in_percent: 30  # use a small set for a faster evaluationin. 100 means a full set.
+  eval_portion_in_percent: 5  # use a small set for a faster evaluationin. 100 means a full set.
+  random_seed_for_eval_subset: 1

@@ -75,7 +75,8 @@ class AlfredEvaluator(Evaluator):
 
         # select a subset of tasks
         if cfg.alfred.eval_portion_in_percent < 100:
-            random.seed(1)  # fix seed for reproducibility
+            seed = cfg.alfred.random_seed_for_eval_subset
+            random.seed(seed)  # set random seed for reproducibility
             n_sample = int(len(files) * cfg.alfred.eval_portion_in_percent / 100)
             files = random.sample(files, n_sample)
             random.seed(cfg.planner.random_seed)
@@ -102,6 +103,8 @@ class AlfredEvaluator(Evaluator):
                 n_success += 1
         log.info(f'success rate: {n_success / n * 100:.2f} % ({n_success}/{n})')
         log.info(f'elapsed: {str(datetime.timedelta(seconds=(time.time() - start)))}')
+        log.info('------------------------')
+        log.info(OmegaConf.to_yaml(cfg))  # print cfg once again for easier configuration lookup
 
     def evaluate_main(self, tasks, args_dict, planner, x_display, save_path):
         results = []
