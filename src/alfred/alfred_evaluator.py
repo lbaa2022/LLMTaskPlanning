@@ -167,7 +167,13 @@ class AlfredEvaluator(Evaluator):
         reward = 0
         imgs = [Image.fromarray(env.last_event.frame)]
 
-        step_by_step_mode = False
+        # mode selection
+        if 'gpt-3.5' in self.cfg.planner.model_name or 'gpt-4' in self.cfg.planner.model_name:
+            # plan whole sequences with chat style api
+            step_by_step_mode = False
+        else:
+            step_by_step_mode = True
+
         if step_by_step_mode:
             prev_steps = []
             prev_action_msg = []
@@ -213,15 +219,6 @@ class AlfredEvaluator(Evaluator):
                 reward += t_reward
                 t += 1
 
-            # check if goal was satisfied
-            goal_satisfied = env.get_goal_satisfied()
-            log.info('target goal: ' + json.dumps(env.task.get_targets()))
-            log.info('success: ' + str(goal_satisfied))
-            if goal_satisfied:
-                # print("Goal Reached")
-                success = True
-                # exit()
-
         else:
 
             steps, prompt = planner.plan_whole(instruction_text)
@@ -253,14 +250,14 @@ class AlfredEvaluator(Evaluator):
                 reward += t_reward
                 t += 1
 
-            # check if goal was satisfied
-            goal_satisfied = env.get_goal_satisfied()
-            log.info('target goal: ' + json.dumps(env.task.get_targets()))
-            log.info('success: ' + str(goal_satisfied))
-            if goal_satisfied:
-                # print("Goal Reached")
-                success = True
-                # exit()
+        # check if goal was satisfied
+        goal_satisfied = env.get_goal_satisfied()
+        log.info('target goal: ' + json.dumps(env.task.get_targets()))
+        log.info('success: ' + str(goal_satisfied))
+        if goal_satisfied:
+            # print("Goal Reached")
+            success = True
+            # exit()
 
         # record results
         log_entry = {'trial': traj_data['task_id'],
