@@ -1,6 +1,6 @@
 # LoTa-Bench: Benchmarking Language-oriented Task Planners for Embodied Agents
 
-We introduce a system for automatically quantifying performance of task planning for home-service agents. Task planners are tested on two pairs of datasets and simulators: 1) ALFRED and AI2-THOR, 2) an extension of Watch-And-Help and VirtualHome. Using the proposed benchmark system, we perform extensive experiments with LLMs and prompts, and explore several extentions of the baseline planner.
+We introduce a system for automatically quantifying performance of task planning for home-service agents. Task planners are tested on two pairs of datasets and simulators: 1) [ALFRED](https://github.com/askforalfred/alfred) and [AI2-THOR](https://ai2thor.allenai.org/), 2) an extension of [Watch-And-Help](https://github.com/xavierpuigf/watch_and_help) and [VirtualHome](http://virtual-home.org/). Using the proposed benchmark system, we perform extensive experiments with LLMs and prompts, and explore several extentions of the baseline planner.
 
 ## Environment
 
@@ -154,3 +154,13 @@ You can find the WAH-NL data, which is our extension of WAH, in `./dataset` fold
     $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
     ```
 
+## Citation
+
+```bibtex
+@inproceedings{choi2024lota,
+  title={LoTa-Bench: Benchmarking Language-oriented Task Planners for Embodied Agents},
+  author={Choi, Jae-Woo and Yoon, Youngwoo and Ong, Hyobin and Kim, Jaehong and Jang, Minsu},
+  booktitle={International Conference on Learning Representations (ICLR)},
+  year={2024}
+}
+```
