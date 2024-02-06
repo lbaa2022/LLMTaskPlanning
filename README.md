@@ -1,5 +1,7 @@
 # LoTa-Bench: Benchmarking Language-oriented Task Planners for Embodied Agents
 
+### [Paper (ICLR 2024)](https://openreview.net/forum?id=ADSxCpCu9s)
+
 We introduce a system for automatically quantifying performance of task planning for home-service agents. Task planners are tested on two pairs of datasets and simulators: 1) [ALFRED](https://github.com/askforalfred/alfred) and [AI2-THOR](https://ai2thor.allenai.org/), 2) an extension of [Watch-And-Help](https://github.com/xavierpuigf/watch_and_help) and [VirtualHome](http://virtual-home.org/). Using the proposed benchmark system, we perform extensive experiments with LLMs and prompts, and explore several extentions of the baseline planner.
 
 ## Environment
