@@ -2,6 +2,10 @@
 
 ### [Paper (ICLR 2024)](https://arxiv.org/abs/2402.08178) | [Project Page](https://choi-jaewoo.github.io/LoTa-Bench/)
 
+[Jae-Woo Choi](https://choi-jaewoo.github.io/)<sup>1*</sup>, [Youngwoo Yoon](https://sites.google.com/view/youngwoo-yoon/)<sup>1*</sup>, Hyobin Ong<sup>1, 2</sup>, Jaehong Kim<sup>1</sup>, Minsu Jang<sup>1, 2</sup> (*equal contribution)
+
+<sup>1</sup> Electronics and Telecommunications Research Institute, <sup>2</sup> University of Science and Technology 
+
 We introduce a system for automatically quantifying performance of task planning for home-service agents. Task planners are tested on two pairs of datasets and simulators: 1) [ALFRED](https://github.com/askforalfred/alfred) and [AI2-THOR](https://ai2thor.allenai.org/), 2) an extension of [Watch-And-Help](https://github.com/xavierpuigf/watch_and_help) and [VirtualHome](http://virtual-home.org/). Using the proposed benchmark system, we perform extensive experiments with LLMs and prompts, and explore several extentions of the baseline planner.
 
 ## Environment
