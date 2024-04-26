@@ -168,7 +168,7 @@ class AlfredEvaluator(Evaluator):
         imgs = [Image.fromarray(env.last_event.frame)]
 
         # mode selection
-        if 'gpt-3.5' in self.cfg.planner.model_name or 'gpt-4' in self.cfg.planner.model_name:
+        if self.cfg.planner.model_name.endswith('gpt-3.5-turbo') or 'gpt-4' in self.cfg.planner.model_name:
             # plan whole sequences with chat style api
             step_by_step_mode = False
         else:
