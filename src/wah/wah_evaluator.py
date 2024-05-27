@@ -90,37 +90,69 @@ class WahEvaluator(Evaluator):
         task_goal = task_d['task_goal']
         
         done, success = False, False
-        prev_steps = []
-        prev_action_msg = []
-        skill_set_size_seq = []
-        while not done:
-            ### Task planning
-            skill_set_size_seq.append(len(task_planner.skill_set))
-            step, prompt = task_planner.plan_step_by_step(nl_instruction, prev_steps, prev_action_msg)
-            if step is None:
-                log.info("\tmax step reached")
-                break
+
+        # mode selection
+        if self.cfg.planner.model_name.endswith('gpt-3.5-turbo') or 'gpt-4' in self.cfg.planner.model_name:
+            # plan whole sequences with chat style api
+            step_by_step_mode = False
+        else:
+            step_by_step_mode = True
+        
+        if step_by_step_mode:
+            prev_steps = []
+            prev_action_msg = []
+            skill_set_size_seq = []
+            while not done:
+                ### Task planning
+                skill_set_size_seq.append(len(task_planner.skill_set))
+                step, prompt = task_planner.plan_step_by_step(nl_instruction, prev_steps, prev_action_msg)
+                if step is None:
+                    log.info("\tmax step reached")
+                    break
+                
+                if log_prompt:
+                    log.info(prompt)
+                # log.info(f'{len(prev_steps) + 1}. {step}')
+                prev_steps.append(step)
+                
+                if step in ['done', 'done.', 'done.\n']:
+                    done = True
+                    prev_action_msg.append('')
+                    break
+                
+                ### TODO: Update skill set
+                task_planner.update_skill_set(step, task_planner.nl_obj_list)
+                
+                ### Simualtion
+                possible, feedback = env.step(step, step_form='nl', instance=False)
+                log.info(f'{len(prev_steps)}. {step} ({possible})')
+                ### TODO: NL feedback ######################################
+                prev_action_msg.append('')
+                ### TODO: Visualization Save ################################
+        else:
             
+            steps, prompt = task_planner.plan_whole(nl_instruction)
+            prev_steps = steps
+
             if log_prompt:
                 log.info(prompt)
-            # log.info(f'{len(prev_steps) + 1}. {step}')
-            prev_steps.append(step)
-            
-            if step in ['done', 'done.', 'done.\n']:
-                done = True
-                prev_action_msg.append('')
-                break
-            
-            ### TODO: Update skill set
-            task_planner.update_skill_set(step, task_planner.nl_obj_list)
-            
-            ### Simualtion
-            possible, feedback = env.step(step, step_form='nl', instance=False)
-            log.info(f'{len(prev_steps)}. {step} ({possible})')
-            ### TODO: NL feedback ######################################
-            prev_action_msg.append('')
-            ### TODO: Visualization Save ################################
-        
+
+            for si, step in enumerate(steps):
+                log.info(f'{si + 1}. {step}')
+
+                if step in ['done', 'done.', 'done.\n']:
+                    done = True
+                    break
+
+                # execute
+                step_to_execute = step
+                
+
+                task_planner.update_skill_set(step, task_planner.nl_obj_list)
+                
+                ### Simualtion
+                possible, feedback = env.step(step, step_form='nl', instance=False)
+
         ### Check goal
         graph = env.get_graph()
         ### TODO: check_goal_condition refactorying
@@ -136,11 +168,9 @@ class WahEvaluator(Evaluator):
             
         subgoal_succes_rate = total_num_subgoal_satisfied / total_num_subgoal
         ### Record results
-        log.info(f"avg. skill set size: {sum(skill_set_size_seq)/len(skill_set_size_seq)}")
         log_entry = {'trial': task_d['task_id'],
                     'goal_instr': nl_instruction,
                     'inferred_steps': prev_steps,
                     'goal_success': goal_success,
-                    'subgoal_success_rate': subgoal_succes_rate,
-                    'avg_skill_set_size': sum(skill_set_size_seq)/len(skill_set_size_seq)}
+                    'subgoal_success_rate': subgoal_succes_rate}
         return log_entry
