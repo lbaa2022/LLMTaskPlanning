@@ -137,9 +137,10 @@ $ python src/evaluate.py --config-name=config_alfred planner.use_predefined_prom
 Make sure you have preprocessed data (run ALFRED benchmarking at least once).
 
 ```bash
-$ python src/misc/extract_alfred_train_samples.py
+$ python src/alfred/exmaine_alfred_data.py
 ```
 
+The output text resource `resource/alfred_train_text_samples.txt` can be used for finetuning. 
 
 ## WAH-NL Dataset
 
