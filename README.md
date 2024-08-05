@@ -55,9 +55,9 @@ $ python src/evaluate.py --config-name=config_alfred
 You can override the configuration. We used [Hydra](https://hydra.cc/) for configuration management.
 
 ```bash
-$ python evaluate.py --config-name=config_alfred planner.model=EleutherAI/gpt-neo-125M
-$ python evaluate.py --config-name=config_alfred alfred.x_display='1'
-$ python evaluate.py --config-name=config_alfred alfred.eval_portion_in_percent=100 prompt.num_examples=18
+$ python src/evaluate.py --config-name=config_alfred planner.model=EleutherAI/gpt-neo-125M
+$ python src/evaluate.py --config-name=config_alfred alfred.x_display='1'
+$ python src/evaluate.py --config-name=config_alfred alfred.eval_portion_in_percent=100 prompt.num_examples=18
 ```
 
 ### Headless Server
@@ -97,7 +97,7 @@ $ python src/evaluate.py --config-name=config_wah
 
 ```bash
 $ cd {project_root}
-$ python evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B prompt.num_examples=10
+$ python src/evaluate.py --config-name=config_wah planner.model_name=EleutherAI/gpt-neo-1.3B prompt.num_examples=10
 ```
 
 ### Benchmarking on Watch-And-Help-NL Using Headless PC
@@ -158,7 +158,7 @@ You can find the WAH-NL data, which is our extension of WAH, in `./dataset` fold
 * I have encountered 'cannot find X server with xdpyinfo' in running ALFRED experiments.
   * Please try another x_display number (this should be a string; e.g., '1') in the config file.
     ```bash
-    $ python evaluate.py --config-name=config_alfred alfred.x_display='1'
+    $ python src/evaluate.py --config-name=config_alfred alfred.x_display='1'
     ```
 
 ## Citation
