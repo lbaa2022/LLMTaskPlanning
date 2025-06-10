@@ -13,7 +13,7 @@ prompt:
   example_file_path: "resource/alfred_examples_for_prompt.json"
 
 alfred:
-  x_display: '0'
+  x_display: '2'
   eval_set: 'valid_seen'  # valid_seen, valid_unseen
   eval_portion_in_percent: 5  # use a small set for a faster evaluationin. 100 means a full set.
   random_seed_for_eval_subset: 1
