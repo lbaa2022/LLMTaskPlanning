@@ -1,0 +1,51 @@
+name: wah
+
+defaults:
+  - hydra: default.yaml
+  - planner: default.yaml
+
+out_dir: ${hydra:run.dir}
+
+planner:
+  model_name: "EleutherAI/gpt-neo-1.3B"
+  max_steps: 30
+  device: "cuda"
+  scoring_batch_size: 10
+  score_function: 'sum'
+  scoring_mode: 'guidance' #'reuse_prompt'
+  use_predefined_prompt: False
+  use_accelerate_device_map: True
+  hf_auth_token: False
+  random_seed: 0
+  nl_act_list: ["find", "pick up", "open", "close", "switch on", "put down"] 
+  dynamic_skill_set: False
+
+prompt:
+  num_examples: 5
+  splitter: ""
+  prefix: "Robot: Hi there, I'm a robot operating in a home.\nRobot: You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task.\n"
+  example_file_path: "resource/wah_examples_for_prompt_default.json" #"resource/wah_examples_for_prompt_default.json"  #"resource/wah_examples_for_prompt_simplest.json"
+  seed: 0
+  select_method:  "uniform" #"same_task"
+
+dataset:
+  wah_testset: "dataset/wah_nl_test.json"
+  wah_trainset: "dataset/wah_nl_train.json"
+  obj_dict_sim2nl: "resource/wah_objects_sim2nl.json"
+  obj_dict_nl2sim: "resource/wah_objects_nl2sim.json"
+
+experiment:
+  exp_name: "benchmark_wah_nl"
+
+environment:
+  observation_types: ['full']
+  use_editor: True #TODO: support Flase
+  base_port: 8080
+  port_id: 1
+  executable_args: {'file_name': "virtualhome/simulation/unity_simulator/linux_exec.x86_64"}
+  recording_options: {
+    'recording': False, 
+    'output_folder': '../../../figure', #{LLMTaskPlanner directory}/figure
+    'file_name_prefix': 'Test', 
+    'cameras': ['PERSON_FROM_BACK']
+  }

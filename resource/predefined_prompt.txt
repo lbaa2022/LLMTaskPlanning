@@ -1,0 +1,45 @@
+Robot: Hi there, I'm a robot operating in a home.
+Robot: You can ask me to do various tasks and I'll tell you the sequence of actions I would do to accomplish your task.
+Human: Put a spoon in the sink.
+Robot: 1. find a ladle, 2. pick up the ladle, 3. find a sink, 4. put down the ladle, 5. done.
+Human: Move vase from the entertainment center to the coffee table.
+Robot: 1. find a vase, 2. pick up the vase, 3. find a coffee table, 4. put down the vase, 5. done.
+Human: Move the newspaper in the living room to the couch.
+Robot: 1. find a newspaper, 2. pick up the newspaper, 3. find a sofa, 4. put down the newspaper, 5. done.
+Human: Pick up a tennis racket and turn on a lamp.
+Robot: 1. find a tennis racket, 2. pick up the tennis racket, 3. find a desk lamp, 4. turn on the desk lamp, 5. done.
+Human: Pick up a pillow and turn on a lamp.
+Robot: 1. find a pillow, 2. pick up the pillow, 3. find a desk lamp, 4. turn on the desk lamp, 5. done.
+Human: Examine a credit card using the light from a floor lamp.
+Robot: 1. find a credit card, 2. pick up the credit card, 3. find a floor lamp, 4. turn on the floor lamp, 5. done.
+Human: Put a pan with a spoon in it on the table.
+Robot: 1. find a spoon, 2. pick up the spoon, 3. find a pot, 4. put down the spoon, 5. pick up the pot, 6. find a dining table, 7. put down the pot, 8. done.
+Human: Put a box with remote in it on the green couch.
+Robot: 1. find a remote control, 2. pick up the remote control, 3. find a box, 4. put down the remote control, 5. pick up the box, 6. find a sofa, 7. put down the box, 8. done.
+Human: Place a box with a cell phone on a chair.
+Robot: 1. find a cell phone, 2. pick up the cell phone, 3. find a box, 4. put down the cell phone, 5. pick up the box, 6. find an arm chair, 7. put down the box, 8. done.
+Human: Place a cold potato on the table.
+Robot: 1. find a potato, 2. pick up the potato, 3. find a fridge, 4. open the fridge, 5. put down the potato, 6. close the fridge, 7. open the fridge, 8. find a potato, 9. pick up the potato, 10. close the fridge, 11. find a counter top, 12. put down the potato, 13. done.
+Human: Put the chilled bowl in the microwave.
+Robot: 1. find a cabinet, 2. open the cabinet, 3. find a bowl, 4. pick up the bowl, 5. close the cabinet, 6. find a fridge, 7. open the fridge, 8. put down the bowl, 9. close the fridge, 10. open the fridge, 11. find a bowl, 12. pick up the bowl, 13. close the fridge, 14. find a microwave, 15. open the microwave, 16. put down the bowl, 17. close the microwave, 18. done.
+Human: Put the chilled sliced cabbage in the trash bin.
+Robot: 1. find a knife, 2. pick up the knife, 3. find a lettuce, 4. slice the lettuce, 5. find a fridge, 6. open the fridge, 7. put down the knife, 8. close the fridge, 9. find a lettuce, 10. pick up the lettuce, 11. find a fridge, 12. open the fridge, 13. put down the lettuce, 14. close the fridge, 15. open the fridge, 16. find a lettuce, 17. pick up the lettuce, 18. close the fridge, 19. find a garbage can, 20. put down the lettuce, 21. done.
+Human: Place a heated plate on the round table.
+Robot: 1. find a plate, 2. pick up the plate, 3. find a microwave, 4. open the microwave, 5. put down the plate, 6. close the microwave, 7. turn on the microwave, 8. turn off the microwave, 9. open the microwave, 10. find a plate, 11. pick up the plate, 12. close the microwave, 13. find a dining table, 14. put down the plate, 15. done.
+Human: Place a microwaved potato in the sink.
+Robot: 1. find a potato, 2. pick up the potato, 3. find a microwave, 4. open the microwave, 5. put down the potato, 6. close the microwave, 7. turn on the microwave, 8. turn off the microwave, 9. open the microwave, 10. find a potato, 11. pick up the potato, 12. close the microwave, 13. find a sink, 14. put down the potato, 15. done.
+Human: Moving a bowl to the shelf.
+Robot: 1. find a cabinet, 2. open the cabinet, 3. find a cup, 4. pick up the cup, 5. close the cabinet, 6. find a microwave, 7. open the microwave, 8. put down the cup, 9. close the microwave, 10. turn on the microwave, 11. turn off the microwave, 12. open the microwave, 13. find a cup, 14. pick up the cup, 15. close the microwave, 16. find a shelf, 17. put down the cup, 18. done.
+Human: Place a cleaned spatula on a dining table.
+Robot: 1. find a spatula, 2. pick up the spatula, 3. find a sink, 4. put down the spatula, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find a spatula, 9. pick up the spatula, 10. find a dining table, 11. put down the spatula, 12. done.
+Human: Place the rinsed off apple on the brown kitchen table.
+Robot: 1. find an apple, 2. pick up the apple, 3. find a sink, 4. put down the apple, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find an apple, 9. pick up the apple, 10. find a dining table, 11. put down the apple, 12. done.
+Human: Put a clean spatula on the counter.
+Robot: 1. find a spatula, 2. pick up the spatula, 3. find a sink, 4. put down the spatula, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find a spatula, 9. pick up the spatula, 10. find a counter top, 11. put down the spatula, 12. done.
+Robot: I can replan the action to perform successfully when the action fails with the message this action failed. If I generate the wrong plan, I'll make sure the command succeeds by replanning.
+Human: Place the rinsed off apple on the brown kitchen table.
+Robot: 1. find an apple, 2. pick up the apple, 3. find a sink, 4. put down the apple, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find an apple, 9. pick up the apple, 10. find a dining table, 11. put down the apple (this action failed: put down failed), 12. find an apple, 13. pick up the apple, 14. find a dining table, 15. put down the apple, 16. done.
+Human: Place the rinsed off apple on the brown kitchen table.
+Robot: 1. find an apple, 2. pick up the apple, 3. find a sink, 4. put down the apple, 5. find a faucet, 6. turn on the faucet, 7. turn off the faucet, 8. find an apple, 9. find a dining table, 10. put down the apple (this action failed: Robot is not holding any object), 11. find an apple, 12. pick up the apple, 13. find a dining table, 14. put down the apple 15. done.
+Human: Place the rinsed off apple on the brown kitchen table.
+Robot: 1. find an apple, 2. pick up the apple (this action failed: Apple is not visible because it is in fridge), 3. find a fridge, 4. open the fridge, 5. find an apple, 6. pick up the apple, 7. find a sink, 8. put down the apple, 9. find a faucet, 10. turn on the faucet, 11. turn off the faucet, 12. find an apple, 13. pick up the apple, 14. find a dining table, 15. put down the apple, 16. done.
