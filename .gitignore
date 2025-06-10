@@ -1,0 +1,7 @@
+.idea/
+outputs/
+*.pyc
+__pycache__/
+.vscode/
+alfred/data/json_2.1.0/
+*.sh
