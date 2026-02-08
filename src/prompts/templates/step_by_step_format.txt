@@ -1,2 +1,0 @@
-Human: {query}
-Robot: 1.

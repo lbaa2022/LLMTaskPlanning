@@ -91,13 +91,11 @@ class WahEvaluator(Evaluator):
         
         done, success = False, False
 
-        # mode selection - OpenAI API compatible providers use whole-plan generation
-        provider = getattr(self.cfg.planner, 'provider', 'openai')
-        if provider in ['openai']:
+        # mode selection
+        if self.cfg.planner.model_name.endswith('gpt-3.5-turbo') or 'gpt-4' in self.cfg.planner.model_name:
             # plan whole sequences with chat style api
             step_by_step_mode = False
         else:
-            # vllm uses step-by-step for local models
             step_by_step_mode = True
         
         if step_by_step_mode:

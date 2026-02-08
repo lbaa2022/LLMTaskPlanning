@@ -1,39 +1,64 @@
-"""
-Task Planner base class using abstracted LLM providers.
-"""
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaTokenizer, LlamaForCausalLM
+from torch.nn import CrossEntropyLoss
+import guidance
 import logging
-from typing import List, Tuple, Optional
-
-from llm import LLMProviderFactory, LLMProvider
-from prompts import get_prompt_loader
 
 
 class TaskPlanner:
-    """
-    Base class for LLM-based task planning.
-
-    Uses the Strategy Pattern via LLMProvider to support OpenAI API compatible backends:
-    - OpenAI (GPT-3.5, GPT-4, GPT-5, o1, o3)
-    - vLLM (locally served models with OpenAI-compatible API)
-    """
-
     def __init__(self, cfg):
         self.cfg = cfg
+        self.device = cfg.planner.device
         self.max_steps = cfg.planner.max_steps
         self.model_name = cfg.planner.model_name
         self.scoring_batch_size = cfg.planner.scoring_batch_size
         self.score_function = cfg.planner.score_function
+        self.scoring_mode = cfg.planner.scoring_mode
         self.use_predefined_prompt = cfg.planner.use_predefined_prompt
 
-        # Initialize LLM provider using factory
-        print(f"Loading LLM: {self.model_name}")
-        self.llm: LLMProvider = LLMProviderFactory.from_config(cfg)
-        print(f"Provider: {type(self.llm).__name__}")
+        # Load pre-trained model
+        print(f"Loading LLM and tokenizer: {self.model_name}")
 
-        self.prompt_loader = get_prompt_loader()
+        model_args = {'pretrained_model_name_or_path': self.model_name, 'trust_remote_code': True,
+                      'torch_dtype': torch.float16}
+        if cfg.planner.use_accelerate_device_map:
+            model_args['device_map'] = "auto"
+            if cfg.planner.load_in_8bit:
+                model_args['load_in_8bit'] = True
+        model_args['use_auth_token'] = cfg.planner.hf_auth_token
 
-        logging.getLogger("openai").setLevel(logging.WARNING)
-        logging.getLogger("httpx").setLevel(logging.WARNING)
+        if cfg.planner.scoring_mode == 'guidance':
+            model_args.pop('pretrained_model_name_or_path')
+            tokenizer = None
+            if "OpenAI" in self.model_name:
+                openai_model_name = self.model_name.split('/')[1]
+                guidance.llm = guidance.llms.OpenAI(openai_model_name, api_key=cfg.planner.openai_api_key)
+            else:
+                if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
+                    tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
+                if "bigscience/bloom" == self.model_name:  # bloom 175B
+                    model_args['max_memory'] = {0: '60GB', 1: '80GB', 2: '48GB', 3: '48GB', 4: '48GB'}
+                guidance.llm = guidance.llms.Transformers(self.model_name, tokenizer=tokenizer, **model_args)
+            self.guidance_program = guidance("""{{prompt}} {{select 'step' options=candidates logprobs='score'}}""")
+
+            self.model = None
+            self.tokenizer = None
+
+            logging.getLogger("guidance").setLevel(logging.WARNING)
+
+        else:
+            if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:  # these do not work well with automodel
+                self.model = LlamaForCausalLM.from_pretrained(**model_args)
+                self.tokenizer = LlamaTokenizer.from_pretrained(self.model_name)
+            else:
+                self.model = AutoModelForCausalLM.from_pretrained(**model_args)
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+            if not cfg.planner.use_accelerate_device_map:
+                self.model = self.model.to(self.device)
+            self.model.eval()
+            self.tokenizer.pad_token_id = 0
+            print(f"Loading done\n")
 
         # Load prompt
         self.prompt = self.init_prompt(cfg)
@@ -54,57 +79,82 @@ class TaskPlanner:
     def update_skill_set(self, previous_step, nl_obj_list):
         raise NotImplementedError()
 
-    def score(self, prompt: str, skill_set: List[str]) -> dict:
-        """
-        Score skills by selecting the best action using the LLM provider.
-
-        Args:
-            prompt: Current context/prompt
-            skill_set: List of candidate actions
-
-        Returns:
-            Dict mapping skills to scores (selected=1.0, others=0.0)
-        """
-        # Use LLM to select best action
-        selected_action = self.llm.select_action(prompt, skill_set)
-
-        # Build scores dict: selected action gets 1.0, others get 0.0
+    def score(self, prompt, skill_set):
         scores = {}
-        matched = False
+        batch_skill_set_list = [skill_set[chunk:chunk + self.scoring_batch_size] for chunk in
+                                range(0, len(skill_set), self.scoring_batch_size)]
 
-        for skill in skill_set:
-            if skill.strip().lower() == selected_action.lower() or selected_action.lower() in skill.strip().lower():
-                scores[skill] = 1.0
-                matched = True
-            else:
-                scores[skill] = 0.0
+        if self.scoring_mode == 'guidance':
+            out = self.guidance_program(prompt=prompt, candidates=skill_set)
+            scores = out['score']
 
-        # Fallback: if no exact match, try fuzzy matching
-        if not matched:
-            for skill in skill_set:
-                if selected_action.lower() in skill.lower() or skill.lower() in selected_action.lower():
-                    scores[skill] = 1.0
-                    matched = True
-                    break
+        elif self.scoring_mode == 'reuse_prompt' or self.scoring_mode == 'naive':
+            prompt_tokens = self.tokenizer(prompt, add_special_tokens=False, return_tensors="pt", padding=True)
+            if not self.cfg.planner.use_accelerate_device_map:
+                prompt_tokens = prompt_tokens.to(self.device)
+            prompt_len = prompt_tokens.attention_mask[0].sum().item()
 
-            # Last resort: assign score to first candidate
-            if not matched and skill_set:
-                scores[skill_set[0]] = 0.5
+            for batch_skill_set in batch_skill_set_list:
+                batch_sentence = [f"{prompt} {skill}" for skill in batch_skill_set]
+                size_B = len(batch_skill_set)
+                if "decapoda-research/llama" in self.model_name or "chainyo/alpaca" in self.model_name:
+                    batch_skill_set_for_model = batch_skill_set
+                else:
+                    batch_skill_set_for_model = [f" {skill}" for skill in batch_skill_set]
 
+                with torch.no_grad():
+                    if self.scoring_mode == 'reuse_prompt':
+                            prompt_output = self.model(**prompt_tokens, use_cache=True)
+                            skill_tokens = self.tokenizer(batch_skill_set_for_model, add_special_tokens=False,
+                                                          return_tensors="pt", padding=True)
+                            if not self.cfg.planner.use_accelerate_device_map:
+                                skill_tokens = skill_tokens.to(self.device)
+                            concat_attention_mask = torch.cat(
+                                (prompt_tokens.attention_mask.repeat(size_B, 1), skill_tokens.attention_mask), dim=1)
+                            batch_past_key_values = self.duplicate_past_key_values(prompt_output.past_key_values, size_B)
+
+                            output = self.model(input_ids=skill_tokens.input_ids,
+                                                attention_mask=concat_attention_mask,
+                                                past_key_values=batch_past_key_values,
+                                                return_dict=True)
+                            prompt_last_logits = prompt_output.logits[:, -1:, :].repeat(size_B, 1, 1)  # [B, 1, C]
+                            logits = torch.cat((prompt_last_logits, output.logits[:, :-1, :]), dim=1)
+                            labels = skill_tokens.input_ids
+                            attention_mask = skill_tokens.attention_mask
+                    elif self.scoring_mode == 'naive':
+                        with torch.no_grad():
+                            sentence_tokens = self.tokenizer(batch_sentence, add_special_tokens=False, return_tensors="pt",
+                                                             padding=True)
+                            if not self.cfg.planner.use_accelerate_device_map:
+                                sentence_tokens = sentence_tokens.to(self.device)
+                            output = self.model(sentence_tokens.input_ids, attention_mask=sentence_tokens.attention_mask,
+                                                return_dict=True)
+                            logits = output.logits[:, prompt_len - 1:-1]
+                            labels = sentence_tokens.input_ids[:, prompt_len:]
+                            attention_mask = sentence_tokens.attention_mask[:, prompt_len:]
+
+                    size_B, size_L, size_C = logits.shape
+                    logits = logits.reshape([size_B * size_L, size_C])
+                    labels = labels.reshape([size_B * size_L])
+                    loss_fn = CrossEntropyLoss(reduction='none')
+                    loss = loss_fn(logits.float(), labels.long())
+                    loss = loss.reshape([size_B, size_L])
+                    skill_len = attention_mask.count_nonzero(axis=1)
+                    if self.score_function == 'sum':
+                        score = -(loss * attention_mask).sum(axis=1)
+                    elif self.score_function == 'avg':
+                        score = -(loss * attention_mask).sum(axis=1) / skill_len
+
+                    for skill_id, skill in enumerate(batch_skill_set):
+                        scores[skill] = score[skill_id].item()
+        else:
+            assert False, 'unknown scoring mode'
         return scores
 
-    def plan_whole(self, query: str) -> Tuple[List[str], List[int]]:
-        """
-        Generate a complete action plan in one shot.
-
-        Args:
-            query: User instruction/query
-
-        Returns:
-            Tuple of (action_sequence, skill_set_sizes)
-        """
+    def plan_whole(self, query):
         step_seq = []
         skill_set_size_seq = []
+        # prompt = self.prompt + f'Human: {query}\nRobot: 1.'
         print(f"Input query: {query}")
 
         prompt_lines = self.prompt.split('\n')
@@ -112,49 +162,69 @@ class TaskPlanner:
         example_text = '\n'.join(prompt_examples)
         skills_text = ', '.join([x.strip() for x in self.skill_set])
 
-        # Use LLM provider's helper to build messages
-        messages = self.llm._build_plan_messages(example_text, skills_text, query)
+        self.guidance_program = guidance("""
+        {{#system~}}
+        You are a robot operating in a home. A human user can ask you to do various tasks and you are supposed to tell the sequence of actions you would do to accomplish your task.
+        {{~/system}}
+        
+        {{#user~}}
+        Examples of human instructions and possible your (robot) answers:
+        {{example_text}}
+        
+        Now please answer the sequence of actions for the input instruction.
+        You should use one of actions of this list: {{skills_text}}.
+        List the actions with comma seperator.
+        
+        Input user instruction:   
+        {{query}}
+        {{~/user}}
+        
+        {{#assistant~}}
+        {{gen 'answer' temperature=0 max_tokens=500}}
+        {{~/assistant}}
+        """)
 
-        # Generate response
-        answer = self.llm.chat_completion(messages, temperature=0, max_tokens=500)
+        # run
+        out = self.guidance_program(example_text=example_text, skills_text=skills_text, query=query)
+        answer = out['answer']
         print(answer)
 
-        # Parse response to list
+        # to list
         answer = answer.replace('Robot: ', '')
         actions = [action.strip(' 1234567890.') for action in answer.split(',')]
         step_seq = actions
 
         return step_seq, skill_set_size_seq
 
-    def plan_step_by_step(self, query: str, prev_steps: tuple = (), prev_msgs: tuple = ()) -> Tuple[Optional[str], Optional[str]]:
-        """
-        Plan one step at a time, selecting the best action for current context.
-
-        Args:
-            query: User instruction/query
-            prev_steps: Previous steps taken
-            prev_msgs: Previous feedback messages
-
-        Returns:
-            Tuple of (best_step, prompt) or (None, None) if max steps reached
-        """
+    def plan_step_by_step(self, query, prev_steps=(), prev_msgs=()):
         if len(prev_steps) >= self.max_steps:
             return None, None
 
-        prompt = self.prompt + self.prompt_loader.format_step_by_step_start(query)
+        prompt = self.prompt + f'Human: {query.strip()}\nRobot: 1. '
 
         for i, (step, msg) in enumerate(zip(prev_steps, prev_msgs)):
             if self.use_predefined_prompt and len(msg) > 0:
-                prompt += self.prompt_loader.format_step_with_failure(step, msg, i + 2)
+                prompt += step + f' (this action failed: {msg.lower()}), {i + 2}. '
             else:
-                prompt += self.prompt_loader.format_step_continuation(step, i + 2)
+                prompt += step + f', {i + 2}. '
 
-        # Score candidates
+        # score
         scores = self.score(prompt, self.skill_set)
 
-        # Find best step
+        # find the best step
         results = sorted(scores.items(), key=lambda x: x[1], reverse=True)
         best_step = results[0][0]
         best_step = best_step.strip()
 
         return best_step, prompt
+
+    def duplicate_past_key_values(self, past_key_values, batch_size):
+        batch_past_key_values = []
+        for layer in range(len(past_key_values)):
+            batch_past_key_values_layer = []
+            for kv in range(len(past_key_values[layer])):
+                batch_past_key_values_layer.append(past_key_values[layer][kv].repeat(batch_size, 1, 1, 1))
+            batch_past_key_values_layer = tuple(batch_past_key_values_layer)
+            batch_past_key_values.append(batch_past_key_values_layer)
+        batch_past_key_values = tuple(batch_past_key_values)
+        return batch_past_key_values
