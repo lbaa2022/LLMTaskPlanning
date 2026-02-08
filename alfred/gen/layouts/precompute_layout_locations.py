@@ -273,9 +273,9 @@ def run():
                                         if not obj['openable'] or event.metadata['lastActionSuccess']:
                                             # We can open the object, so try placing our small inventory obj inside.
                                             # If it can be placed inside and retrieved, then this is a safe point.
+                                            # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
                                             action = {'action': 'PutObject',
-                                                      'objectId': inv_obj,
-                                                      'receptacleObjectId': obj['objectId'],
+                                                      'objectId': obj['objectId'],
                                                       'forceAction': True,
                                                       'placeStationary': True}
                                             if inv_obj:

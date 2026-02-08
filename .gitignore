@@ -5,3 +5,8 @@ __pycache__/
 .vscode/
 alfred/data/json_2.1.0/
 *.sh
+
+# Environment variables
+.env
+.env.local
+.env.*.local

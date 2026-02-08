@@ -1,0 +1,9 @@
+Examples of human instructions and possible your (robot) answers:
+{examples}
+
+Now please answer the sequence of actions for the input instruction.
+You should use one of actions of this list: {skills}.
+List the actions with comma separator.
+
+Input user instruction:
+{query}

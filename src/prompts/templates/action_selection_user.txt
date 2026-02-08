@@ -1,0 +1,6 @@
+{prompt}
+
+Candidate actions:
+{candidates}
+
+Select the best next action from the candidates above. Respond with only the exact action text.

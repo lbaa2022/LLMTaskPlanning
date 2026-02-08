@@ -126,7 +126,7 @@ class GameStateBase(object):
                 renderDepthImage=constants.RENDER_DEPTH_IMAGE,
                 renderClassImage=constants.RENDER_CLASS_IMAGE,
                 renderObjectImage=constants.RENDER_OBJECT_IMAGE,
-                visibility_distance=constants.VISIBILITY_DISTANCE,
+                visibilityDistance=constants.VISIBILITY_DISTANCE,
                 makeAgentsVisible=False,
             ))
 
@@ -147,13 +147,12 @@ class GameStateBase(object):
 
             # if 'clean' action, make everything dirty and empty out fillable things
             if constants.pddl_goal_type == "pick_clean_then_place_in_recep":
-                self.env.step(dict(action='SetStateOfAllObjects',
-                                   StateChange="CanBeDirty",
-                                   forceAction=True))
-
-                self.env.step(dict(action='SetStateOfAllObjects',
-                                   StateChange="CanBeFilled",
-                                   forceAction=False))
+                # Set all dirtyable objects to dirty state
+                for obj in self.env.last_event.metadata['objects']:
+                    if obj.get('dirtyable', False):
+                        self.env.step(dict(action='DirtyObject', objectId=obj['objectId'], forceAction=True))
+                    if obj.get('canFillWithLiquid', False) and obj.get('isFilledWithLiquid', False):
+                        self.env.step(dict(action='EmptyLiquidObject', objectId=obj['objectId'], forceAction=True))
 
             if objs is not None and ('seton' in objs and len(objs['seton']) > 0):
                 self.env.step(dict(action='SetObjectToggles',
@@ -180,9 +179,9 @@ class GameStateBase(object):
                   'x': self.start_point[0] * constants.AGENT_STEP_SIZE,
                   'y': self.agent_height,
                   'z': self.start_point[1] * constants.AGENT_STEP_SIZE,
-                  'rotateOnTeleport': True,
                   'horizon': 30,
-                  'rotation': self.start_point[2] * 90,
+                  'rotation': {'x': 0, 'y': self.start_point[2] * 90, 'z': 0},
+                  'standing': True,
                   }
         self.event = self.env.step(action)
 
@@ -563,9 +562,9 @@ class GameStateBase(object):
                         # put the object in the sink
                         sink_obj_id = self.get_some_visible_obj_of_name('SinkBasin')['objectId']
                         inv_obj = self.env.last_event.metadata['inventoryObjects'][0]
+                        # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
                         put_action = dict(action='PutObject',
-                                          objectId=inv_obj['objectId'],
-                                          receptacleObjectId=sink_obj_id,
+                                          objectId=sink_obj_id,
                                           forceAction=True,
                                           placeStationary=True)
                         self.store_ll_action(put_action)
@@ -628,9 +627,9 @@ class GameStateBase(object):
 
                         # put the object in the microwave
                         inv_obj = self.env.last_event.metadata['inventoryObjects'][0]
+                        # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
                         put_action = dict(action='PutObject',
-                                          objectId=inv_obj['objectId'],
-                                          receptacleObjectId=microwave_obj_id,
+                                          objectId=microwave_obj_id,
                                           forceAction=True,
                                           placeStationary=True)
                         self.store_ll_action(put_action)
@@ -689,9 +688,9 @@ class GameStateBase(object):
 
                         # put the object in the fridge
                         inv_obj = self.env.last_event.metadata['inventoryObjects'][0]
+                        # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
                         put_action = dict(action='PutObject',
-                                          objectId=inv_obj['objectId'],
-                                          receptacleObjectId=fridge_obj_id,
+                                          objectId=fridge_obj_id,
                                           forceAction=True,
                                           placeStationary=True)
                         self.store_ll_action(put_action)
@@ -785,8 +784,8 @@ class GameStateBase(object):
                         'x': start_pose[0] * constants.AGENT_STEP_SIZE,
                         'y': self.agent_height,
                         'z': start_pose[1] * constants.AGENT_STEP_SIZE,
-                        'rotateOnTeleport': True,
-                        'rotation': new_pose[2] * 90,
+                        'rotation': {'x': 0, 'y': new_pose[2] * 90, 'z': 0},
+                        'standing': True,
                     })
                     self.env.last_event.metadata['lastActionSuccess'] = False
 

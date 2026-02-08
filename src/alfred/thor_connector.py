@@ -21,7 +21,14 @@ class ThorConnector(ThorEnv):
                  quality='MediumCloseFitShadows',
                  build_path=constants.BUILD_PATH):
         super().__init__(x_display, player_screen_height, player_screen_width, quality, build_path)
-        self.font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
+        # Try to load a font, fall back to default if not available
+        try:
+            self.font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
+        except OSError:
+            try:
+                self.font = ImageFont.truetype("/System/Library/Fonts/Monaco.ttf", 24)  # macOS
+            except OSError:
+                self.font = ImageFont.load_default()
         self.agent_height = 0.9
         self.cur_receptacle = None
         self.reachable_positions, self.reachable_position_kdtree = None, None
@@ -45,7 +52,9 @@ class ThorConnector(ThorEnv):
         y_text = 6
         draw = ImageDraw.Draw(img)
         for line in lines:
-            width, height = self.font.getsize(line)
+            # Use getbbox for Pillow 10+ compatibility (getsize was deprecated)
+            bbox = self.font.getbbox(line)
+            height = bbox[3] - bbox[1]
             draw.text((6, y_text), line, font=self.font, fill=(255, 255, 255))
             y_text += height
         if cfg is True:
@@ -53,7 +62,8 @@ class ThorConnector(ThorEnv):
                 text_msg = 'error : ' + description['message']
                 lines = textwrap.wrap(text_msg, width=20)
                 for line in lines:
-                    width, height = self.font.getsize(line)
+                    bbox = self.font.getbbox(line)
+                    height = bbox[3] - bbox[1]
                     draw.text((6, y_text + 6), line, font=self.font, fill=(255, 0, 0))
                     y_text += height
         return img
@@ -116,12 +126,16 @@ class ThorConnector(ThorEnv):
         else:
             assert False, 'instruction not supported'
 
-        if not self.last_event.metadata['lastActionSuccess']:
-            log.warning(f"llm_skill_interact failed")
-            log.warning(f"errorMessage: {self.last_event.metadata['errorMessage']}")
-            log.warning(f"returned msg: {ret}")
+        # Check both simulator action success AND our return message
+        # (nav_obj may not perform simulator action if object not found)
+        action_failed = not self.last_event.metadata['lastActionSuccess'] or len(ret) > 0
+        if action_failed:
+            # Ensure lastActionSuccess reflects the actual failure
+            self.last_event.metadata['lastActionSuccess'] = False
+            if len(ret) > 0:
+                log.warning(f"Action failed: {ret}")
         else:
-            log.info(f"Last action succeeded")
+            log.info(f"Action succeeded")
 
         ret_dict = {
             'action': instruction,
@@ -159,6 +173,9 @@ class ThorConnector(ThorEnv):
                 break
 
         if obj_idx == -1:
+            # Log available object types in scene for debugging
+            available_types = sorted(set(o['objectId'].split('|')[0] for o in objects))
+            log.warning(f'Cannot find {target_obj}. Available object types: {available_types}')
             ret_msg = f'Cannot find {target_obj}'
         else:
             # teleport sometimes fails even with reachable positions. if fails, repeat with the next closest reachable positions.
@@ -205,13 +222,15 @@ class ThorConnector(ThorEnv):
                 hor_angle = math.atan2((loc['y'] - camera_height), xz_dist)
                 hor_angle = (180 / math.pi) * hor_angle  # in degrees
                 hor_angle *= 0.9  # adjust angle for better view
-                # hor_angle = -30
-                # hor_angle = 0
+                # AI2-THOR 5.x: horizon must be in [-30, 60] range
+                horizon = max(-30, min(60, -hor_angle))
 
-                # teleport
+                # teleport (AI2-THOR 5.x: Vector3 rotation, standing required, use y from reachable positions)
                 super().step(dict(action="TeleportFull",
-                                  x=closest_loc[0], y=self.agent_height, z=closest_loc[2],
-                                  rotation=rot_angle, horizon=-hor_angle))
+                                  x=closest_loc[0], y=closest_loc[1], z=closest_loc[2],
+                                  rotation={'x': 0, 'y': rot_angle, 'z': 0},
+                                  horizon=horizon,
+                                  standing=True))
 
                 if not self.last_event.metadata['lastActionSuccess']:
                     log.warning(
@@ -222,16 +241,38 @@ class ThorConnector(ThorEnv):
 
             if not teleport_success:
                 ret_msg = f'Cannot move to {target_obj}'
+            else:
+                # Verify target object is visible after navigation
+                # If not visible, try rotating to find it
+                obj_id_check, obj_data_check = self.get_obj_id_from_name(target_obj, priority_sliced=prefer_sliced)
+                if obj_data_check and not obj_data_check['visible']:
+                    log.info(f'{target_obj} not visible after teleport, rotating to find it...')
+                    # Try rotating in 90-degree increments to find the object
+                    for rotation_attempt in range(4):
+                        super().step(dict(action="RotateRight", degrees=90))
+                        obj_id_check, obj_data_check = self.get_obj_id_from_name(target_obj, priority_sliced=prefer_sliced)
+                        if obj_data_check and obj_data_check['visible']:
+                            log.info(f'{target_obj} now visible after rotation')
+                            break
 
         return ret_msg
 
     def get_obj_id_from_name(self, obj_name, only_pickupable=False, only_toggleable=False, priority_sliced=False, get_inherited=False,
-                             parent_receptacle_penalty=True, priority_in_visibility=False, exclude_obj_id=None):
+                             parent_receptacle_penalty=True, priority_in_visibility=False, require_visibility=False, exclude_obj_id=None,
+                             only_open_receptacles=False):
         obj_id = None
         obj_data = None
         min_distance = 1e+8
         for obj in self.last_event.metadata['objects']:
             if obj['objectId'] == exclude_obj_id:
+                continue
+
+            # Skip non-visible objects if visibility is required
+            if require_visibility and not obj['visible']:
+                continue
+
+            # Skip closed openable receptacles if only_open_receptacles is True
+            if only_open_receptacles and obj.get('openable') and not obj.get('isOpen'):
                 continue
 
             if (only_pickupable is False or obj['pickupable']) and \
@@ -278,7 +319,7 @@ class ThorConnector(ThorEnv):
                 recep_name = obj_data["parentReceptacles"][0].split('|')[0]
                 ret_msg = f'{obj_name} is not visible because it is in {recep_name}'
 
-                # try anyway
+                # try anyway (will fail if container is closed)
                 super().step(dict(
                     action="PickupObject",
                     objectId=obj_id,
@@ -325,9 +366,15 @@ class ThorConnector(ThorEnv):
                         exclude_obj_id = last_recep_id  # previous recep id
 
                     if i == 0:
-                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, exclude_obj_id=exclude_obj_id)
+                        # Prioritize open receptacles for openable containers (e.g., cabinet, fridge)
+                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, exclude_obj_id=exclude_obj_id, only_open_receptacles=True)
+                        # If no open receptacle found, try any receptacle (will fail but gives better error message)
+                        if not recep_id:
+                            recep_id, _ = self.get_obj_id_from_name(receptacle_name, exclude_obj_id=exclude_obj_id)
                     else:
-                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True, exclude_obj_id=exclude_obj_id)
+                        recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True, exclude_obj_id=exclude_obj_id, only_open_receptacles=True)
+                        if not recep_id:
+                            recep_id, _ = self.get_obj_id_from_name(receptacle_name, get_inherited=True, exclude_obj_id=exclude_obj_id)
 
                     if not recep_id:
                         ret_msg = f'Cannot find {receptacle_name}'
@@ -358,15 +405,18 @@ class ThorConnector(ThorEnv):
                     elif j == 6:
                         for r in range(4):
                             super().step(dict(action="MoveRight"))
+                        # AI2-THOR 5.x: RotateHand requires x, y, z parameters
                         super().step(dict(  # this somehow make putobject success in some cases
                             action="RotateHand",
-                            x=40
+                            x=40,
+                            y=0,
+                            z=0
                         ))
 
+                    # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
                     super().step(dict(
                         action="PutObject",
-                        objectId=holding_obj_id,
-                        receptacleObjectId=recep_id,
+                        objectId=recep_id,
                         forceAction=True
                     ))
                     last_recep_id = recep_id
@@ -406,7 +456,8 @@ class ThorConnector(ThorEnv):
     def open(self, obj_name):
         log.info(f'open {obj_name}')
         ret_msg = ''
-        obj_id, _ = self.get_obj_id_from_name(obj_name)
+        # Require visibility - can only interact with visible objects
+        obj_id, _ = self.get_obj_id_from_name(obj_name, require_visibility=True)
 
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to open'
@@ -419,28 +470,39 @@ class ThorConnector(ThorEnv):
 
                 if not self.last_event.metadata['lastActionSuccess']:
                     log.warning(
-                        f"OpenObject action failed: {self.last_event.metadata['errorMessage']}, moving backward and trying again...")
+                        f"OpenObject action failed (attempt {i+1}/4): {self.last_event.metadata['errorMessage']}")
                     ret_msg = f"Open action failed"
 
-                    # move around to avoid self-collision
+                    # move around to avoid self-collision and retry
                     if i == 0:
+                        log.info("Moving backward and trying again...")
                         super().step(dict(action="MoveBack"))
                     elif i == 1:
+                        log.info("Moving backward-right and trying again...")
                         super().step(dict(action="MoveBack"))
                         super().step(dict(action="MoveRight"))
                     elif i == 2:
+                        log.info("Moving left and trying again...")
                         super().step(dict(action="MoveLeft"))
                         super().step(dict(action="MoveLeft"))
+                    # i == 3: no more retries
                 else:
+                    if i > 0:
+                        log.info(f"OpenObject succeeded on retry attempt {i+1}")
                     ret_msg = ''
                     break
+
+            # Log final result
+            if ret_msg:
+                log.warning(f"OpenObject failed after all {i+1} attempts")
 
         return ret_msg
 
     def close(self, obj_name):
         log.info(f'close {obj_name}')
         ret_msg = ''
-        obj_id, _ = self.get_obj_id_from_name(obj_name)
+        # Require visibility - can only interact with visible objects
+        obj_id, _ = self.get_obj_id_from_name(obj_name, require_visibility=True)
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to close'
         else:
@@ -457,7 +519,8 @@ class ThorConnector(ThorEnv):
     def toggleon(self, obj_name):
         log.info(f'toggle on {obj_name}')
         ret_msg = ''
-        obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True)
+        # Require visibility - can only interact with visible objects
+        obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True, require_visibility=True)
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to turn on'
         else:
@@ -474,7 +537,8 @@ class ThorConnector(ThorEnv):
     def toggleoff(self, obj_name):
         log.info(f'toggle off {obj_name}')
         ret_msg = ''
-        obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True)
+        # Require visibility - can only interact with visible objects
+        obj_id, _ = self.get_obj_id_from_name(obj_name, only_toggleable=True, require_visibility=True)
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to turn off'
         else:
@@ -491,7 +555,8 @@ class ThorConnector(ThorEnv):
     def slice(self, obj_name):
         log.info(f'slice {obj_name}')
         ret_msg = ''
-        obj_id, _ = self.get_obj_id_from_name(obj_name)
+        # Require visibility - can only interact with visible objects
+        obj_id, _ = self.get_obj_id_from_name(obj_name, require_visibility=True)
         if obj_id is None:
             ret_msg = f'Cannot find {obj_name} to slice'
         else:

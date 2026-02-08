@@ -25,7 +25,14 @@ from src.evaluator import Evaluator
 
 
 splits = 'alfred/data/splits/oct21.json'
-font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
+# Try to load a font, fall back to default if not available
+try:
+    font = ImageFont.truetype("/usr/share/fonts/truetype/ubuntu/UbuntuMono-B.ttf", 24)
+except OSError:
+    try:
+        font = ImageFont.truetype("/System/Library/Fonts/Monaco.ttf", 24)  # macOS
+    except OSError:
+        font = ImageFont.load_default()
 log = logging.getLogger(__name__)
 
 
@@ -117,7 +124,8 @@ class AlfredEvaluator(Evaluator):
                 f.write(planner.prompt)
 
         train_gt_steps = None
-        if self.cfg.alfred.eval_set == 'train':
+        eval_split = self.cfg.alfred.eval_set
+        if eval_split == 'train':
             # load ground-truth trajectories
             train_gt_steps = {}
             with open(self.cfg.prompt.example_file_path, 'r') as f:
@@ -129,7 +137,7 @@ class AlfredEvaluator(Evaluator):
         for i, task in enumerate(tqdm(tasks)):
             try:
                 log.info(task)
-                traj_data = load_task_json(task)
+                traj_data = load_task_json(task, split=eval_split)
                 r_idx = task['repeat_idx']
                 log.info(f"Evaluating ({i+1}/{len(tasks)}): {traj_data['root']}")
                 result = self.evaluate_task(env, traj_data, r_idx, model_args, planner, save_path, log_prompt=(i==0), train_gt_steps=train_gt_steps)
@@ -167,11 +175,13 @@ class AlfredEvaluator(Evaluator):
         reward = 0
         imgs = [Image.fromarray(env.last_event.frame)]
 
-        # mode selection
-        if self.cfg.planner.model_name.endswith('gpt-3.5-turbo') or 'gpt-4' in self.cfg.planner.model_name:
+        # mode selection - OpenAI API compatible providers use whole-plan generation
+        provider = getattr(self.cfg.planner, 'provider', 'openai')
+        if provider in ['openai']:
             # plan whole sequences with chat style api
             step_by_step_mode = False
         else:
+            # vllm uses step-by-step for local models
             step_by_step_mode = True
 
         if step_by_step_mode:
@@ -207,12 +217,19 @@ class AlfredEvaluator(Evaluator):
                 try:
                     action_ret = env.llm_skill_interact(step_to_execute)
                 except Exception as e:
-                    log.warning(e)
+                    log.warning(f"Exception during step execution: {e}")
+                    action_ret = {
+                        'action': step_to_execute,
+                        'success': False,
+                        'message': f'Exception: {e}'
+                    }
                 imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t+1, action_ret))
                 prev_action_msg.append(action_ret['message'])
 
                 if not action_ret['success']:
-                    print(action_ret['message'])
+                    log.warning(f"Step failed: {action_ret['message']}")
+                    log.warning("Stopping execution due to action failure")
+                    break
 
                 # next time-step
                 t_reward, t_done = env.get_transition_reward()
@@ -239,11 +256,18 @@ class AlfredEvaluator(Evaluator):
                 try:
                     action_ret = env.llm_skill_interact(step_to_execute)
                 except Exception as e:
-                    log.warning(e)
+                    log.warning(f"Exception during step execution: {e}")
+                    action_ret = {
+                        'action': step_to_execute,
+                        'success': False,
+                        'message': f'Exception: {e}'
+                    }
                 imgs.append(env.write_step_on_img(self.cfg.planner.use_predefined_prompt, t + 1, action_ret))
 
                 if not action_ret['success']:
-                    print(action_ret['message'])
+                    log.warning(f"Step failed: {action_ret['message']}")
+                    log.warning("Stopping execution due to action failure")
+                    break
 
                 # next time-step
                 t_reward, t_done = env.get_transition_reward()

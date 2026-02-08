@@ -1,12 +1,11 @@
 import os
 import json
 import revtok
-import torch
 import copy
 import progressbar
-from vocab import Vocab
-from gen.utils.py_util import remove_spaces_and_lower
-from gen.utils.game_util import sample_templated_task_desc_from_traj_data
+from alfred.vocab import Vocab
+from alfred.gen.utils.py_util import remove_spaces_and_lower
+from alfred.gen.utils.game_util import sample_templated_task_desc_from_traj_data
 
 
 def has_interaction(action):

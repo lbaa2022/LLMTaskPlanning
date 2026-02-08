@@ -1,0 +1,135 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GroundTruthEvaluationReport",
+  "description": "Output schema for ground-truth plan evaluation runs",
+  "type": "object",
+  "required": ["timestamp", "config", "total_evaluated", "total_success", "total_failure", "success_rate", "results", "by_task_type", "by_failure_category"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of the evaluation run"
+    },
+    "config": {
+      "type": "object",
+      "description": "Evaluation configuration used for this run",
+      "properties": {
+        "eval_portion_in_percent": { "type": "number", "minimum": 0, "maximum": 100 },
+        "random_seed": { "type": "integer" },
+        "gt_data_file": { "type": "string" },
+        "x_display": { "type": "string" }
+      }
+    },
+    "total_evaluated": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of plans executed"
+    },
+    "total_success": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of plans that succeeded"
+    },
+    "total_failure": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of plans that failed"
+    },
+    "success_rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Success rate as a percentage"
+    },
+    "results": {
+      "type": "array",
+      "description": "Per-task evaluation results",
+      "items": {
+        "$ref": "#/definitions/TaskResult"
+      }
+    },
+    "by_task_type": {
+      "type": "object",
+      "description": "Success rate breakdown by task type",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer" },
+          "success": { "type": "integer" },
+          "failure": { "type": "integer" },
+          "success_rate": { "type": "number" }
+        },
+        "required": ["total", "success", "failure", "success_rate"]
+      }
+    },
+    "by_failure_category": {
+      "type": "object",
+      "description": "Count of failures by category",
+      "additionalProperties": {
+        "type": "integer"
+      }
+    }
+  },
+  "definitions": {
+    "TaskResult": {
+      "type": "object",
+      "required": ["task_id", "task_type", "task_description", "entry_index", "success", "executed_steps", "total_steps", "goal_satisfied", "scene_name"],
+      "properties": {
+        "task_id": {
+          "type": "string",
+          "description": "Trial identifier"
+        },
+        "task_type": {
+          "type": "string",
+          "description": "ALFRED task category"
+        },
+        "task_description": {
+          "type": "string",
+          "description": "Human-readable instruction"
+        },
+        "entry_index": {
+          "type": "integer",
+          "description": "Position in original dataset"
+        },
+        "success": {
+          "type": "boolean",
+          "description": "Whether all steps completed and goal was satisfied"
+        },
+        "executed_steps": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Steps that were actually executed"
+        },
+        "total_steps": {
+          "type": "integer",
+          "description": "Total number of NL steps in the plan"
+        },
+        "failure_step": {
+          "type": ["integer", "null"],
+          "description": "Step number where failure occurred (1-indexed)"
+        },
+        "failure_action": {
+          "type": ["string", "null"],
+          "description": "The action text that failed"
+        },
+        "failure_message": {
+          "type": ["string", "null"],
+          "description": "Error message from simulator"
+        },
+        "failure_category": {
+          "type": ["string", "null"],
+          "enum": ["object_not_found", "navigation_failure", "inventory_error", "visibility_error", "interaction_failure", "exception", "unknown", null],
+          "description": "Categorized failure type"
+        },
+        "goal_satisfied": {
+          "type": "boolean",
+          "description": "Whether the ALFRED goal checker reports success"
+        },
+        "scene_name": {
+          "type": "string",
+          "description": "Scene identifier (e.g., FloorPlan301)"
+        }
+      }
+    }
+  }
+}

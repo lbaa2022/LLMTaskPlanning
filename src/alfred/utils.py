@@ -10,15 +10,39 @@ class dotdict(dict):
     __delattr__ = dict.__delitem__
 
 
-def load_task_json(task):
+def load_task_json(task, split='valid_seen'):
     '''
-    load preprocessed json from disk
+    load task json from disk, trying preprocessed first then raw
     '''
-    json_path = os.path.join('alfred/data/json_2.1.0', task['task'], 'pp',
-                             'ann_%d.json' % task['repeat_idx'])
-    with open(json_path) as f:
-        data = json.load(f)
-    return data
+    base_path = 'alfred/data/json_2.1.0'
+    task_path = task['task']
+
+    # Try preprocessed file first (at top level)
+    pp_path = os.path.join(base_path, task_path, 'pp', 'ann_%d.json' % task['repeat_idx'])
+    if os.path.exists(pp_path):
+        with open(pp_path) as f:
+            return json.load(f)
+
+    # Try raw traj_data.json under split folder
+    raw_path = os.path.join(base_path, split, task_path, 'traj_data.json')
+    if os.path.exists(raw_path):
+        with open(raw_path) as f:
+            data = json.load(f)
+        # Add root field needed by evaluator
+        data['root'] = os.path.join(base_path, split, task_path)
+        data['repeat_idx'] = task['repeat_idx']
+        return data
+
+    # Last fallback: try at top level without split
+    fallback_path = os.path.join(base_path, task_path, 'traj_data.json')
+    if os.path.exists(fallback_path):
+        with open(fallback_path) as f:
+            data = json.load(f)
+        data['root'] = os.path.join(base_path, task_path)
+        data['repeat_idx'] = task['repeat_idx']
+        return data
+
+    raise FileNotFoundError(f"Could not find task data at: {pp_path}, {raw_path}, or {fallback_path}")
 
 
 def print_gpu_usage(msg):

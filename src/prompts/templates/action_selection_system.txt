@@ -1,0 +1,1 @@
+You are a robot operating in a home. Given a partial action sequence, select the most appropriate next action from the provided list. Respond with ONLY the exact action text, nothing else.

@@ -1,0 +1,13 @@
+name: alfred_gt
+
+defaults:
+  - hydra: default.yaml
+  - planner: default.yaml
+
+out_dir: ${hydra:run.dir}
+
+gt:
+  eval_portion_in_percent: 5  # percentage of GT plans to evaluate (1-100)
+  random_seed: 42  # seed for reproducible random selection
+  gt_data_file: "resource/alfred_examples_for_prompt.json"
+  x_display: '0'

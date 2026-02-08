@@ -26,11 +26,26 @@ class ThorEnv(Controller):
                  quality='MediumCloseFitShadows',
                  build_path=constants.BUILD_PATH):
 
-        super().__init__(quality=quality)
-        self.local_executable_path = build_path
-        self.start(x_display=x_display,
-                   player_screen_height=player_screen_height,
-                   player_screen_width=player_screen_width)
+        # AI2-THOR 4.x compatible initialization
+        import platform
+        init_kwargs = {
+            'quality': quality,
+            'height': player_screen_height,
+            'width': player_screen_width,
+            'fieldOfView': 60,
+        }
+
+        # Only add x_display on Linux (not needed on macOS)
+        if platform.system() == 'Linux' and x_display:
+            init_kwargs['x_display'] = x_display
+
+        # Use local build if specified and exists
+        if build_path:
+            import os
+            if os.path.exists(build_path):
+                init_kwargs['local_executable_path'] = build_path
+
+        super().__init__(**init_kwargs)
         self.task = None
 
         # internal states
@@ -43,6 +58,51 @@ class ThorEnv(Controller):
         self.reopen_reward = False
 
         print("ThorEnv started.")
+
+    def _convert_teleport_action(self, action):
+        '''
+        Convert old-style TeleportFull action to AI2-THOR 4.x format
+        '''
+        new_action = {'action': 'TeleportFull'}
+
+        # Handle rotation - convert single value to Vector3
+        if 'rotation' in action:
+            rot = action['rotation']
+            if isinstance(rot, (int, float)):
+                new_action['rotation'] = {'x': 0, 'y': rot, 'z': 0}
+            else:
+                new_action['rotation'] = rot
+
+        # Copy position coordinates
+        for key in ['x', 'y', 'z', 'horizon']:
+            if key in action:
+                new_action[key] = action[key]
+
+        # Add standing parameter (required in 4.x)
+        new_action['standing'] = True
+
+        # Copy forceAction if present
+        if 'forceAction' in action:
+            new_action['forceAction'] = action['forceAction']
+
+        return new_action
+
+    def _set_objects_dirty(self):
+        '''
+        Set all dirtyable objects to dirty state.
+        Replaces SetStateOfAllObjects which was removed in AI2-THOR 5.x
+        '''
+        for obj in self.last_event.metadata['objects']:
+            if obj.get('dirtyable', False):
+                super().step(dict(action='DirtyObject', objectId=obj['objectId'], forceAction=True))
+
+    def _empty_fillable_objects(self):
+        '''
+        Empty all fillable objects that contain liquid.
+        Note: EmptyLiquidObject action was removed in AI2-THOR 5.x, so this is a no-op.
+        Objects start empty by default when scene is reset.
+        '''
+        pass  # AI2-THOR 5.x doesn't have EmptyLiquidObject action
 
     def reset(self, scene_name_or_num,
               grid_size=constants.AGENT_STEP_SIZE / constants.RECORD_SMOOTHING_FACTOR,
@@ -71,12 +131,12 @@ class ThorEnv(Controller):
             renderDepthImage=render_depth_image,
             renderClassImage=render_class_image,
             renderObjectImage=render_object_image,
-            visibility_distance=visibility_distance,
+            visibilityDistance=visibility_distance,
             makeAgentsVisible=False,
         ))
 
         # reset task if specified
-        if self.task is not None:
+        if hasattr(self, 'task') and self.task is not None:
             self.task.reset()
 
         # clear object state changes
@@ -104,20 +164,102 @@ class ThorEnv(Controller):
             renderDepthImage=constants.RENDER_DEPTH_IMAGE,
             renderClassImage=constants.RENDER_CLASS_IMAGE,
             renderObjectImage=constants.RENDER_OBJECT_IMAGE,
-            visibility_distance=constants.VISIBILITY_DISTANCE,
+            visibilityDistance=constants.VISIBILITY_DISTANCE,
             makeAgentsVisible=False,
         ))
         if len(object_toggles) > 0:
             super().step((dict(action='SetObjectToggles', objectToggles=object_toggles)))
 
+        # Set dirty states for individual objects (AI2-THOR 5.x compatible)
+        # Note: EmptyLiquidObject action was removed in AI2-THOR 5.x
         if dirty_and_empty:
-            super().step(dict(action='SetStateOfAllObjects',
-                               StateChange="CanBeDirty",
-                               forceAction=True))
-            super().step(dict(action='SetStateOfAllObjects',
-                               StateChange="CanBeFilled",
-                               forceAction=False))
-        super().step((dict(action='SetObjectPoses', objectPoses=object_poses)))
+            for obj in self.last_event.metadata['objects']:
+                if obj.get('dirtyable', False):
+                    super().step(dict(action='DirtyObject', objectId=obj['objectId'], forceAction=True))
+
+        # Map old object names to current scene object names (AI2-THOR 5.x compatibility)
+        # The ALFRED dataset was created with AI2-THOR 2.x which has different object IDs
+        mapped_object_poses = self._map_object_poses_to_scene(object_poses)
+        if mapped_object_poses:
+            super().step((dict(action='SetObjectPoses', objectPoses=mapped_object_poses)))
+
+    def _map_object_poses_to_scene(self, object_poses):
+        '''
+        Map object names from ALFRED dataset (AI2-THOR 2.x) to current scene (AI2-THOR 5.x).
+        Objects are matched by type (e.g., 'Plate' from 'Plate_abc123').
+
+        IMPORTANT: AI2-THOR 5.x SetObjectPoses removes objects not in the list,
+        so we must include ALL scene objects to preserve furniture, etc.
+        '''
+        # Build mapping of object types to available scene object names
+        scene_objects_by_type = {}
+        scene_objects_by_name = {}  # For preserving unmapped objects
+        for obj in self.last_event.metadata['objects']:
+            obj_name = obj['name']
+            obj_type = obj_name.split('_')[0] if '_' in obj_name else obj_name
+            if obj_type not in scene_objects_by_type:
+                scene_objects_by_type[obj_type] = []
+            scene_objects_by_type[obj_type].append(obj_name)
+            scene_objects_by_name[obj_name] = obj
+
+        # Create mapping from old unique names to new names
+        old_to_new_name = {}
+        type_usage_count = {}
+        mapped_scene_objects = set()  # Track which scene objects get mapped
+
+        # First pass: identify unique old names and map them
+        unique_old_names = []
+        seen = set()
+        for pose in object_poses:
+            old_name = pose.get('objectName', '')
+            if old_name and old_name not in seen:
+                seen.add(old_name)
+                unique_old_names.append(old_name)
+
+        # Map each unique old name to a scene object of the same type
+        for old_name in unique_old_names:
+            obj_type = old_name.split('_')[0] if '_' in old_name else old_name
+
+            if obj_type in scene_objects_by_type:
+                count = type_usage_count.get(obj_type, 0)
+                available = scene_objects_by_type[obj_type]
+                if count < len(available):
+                    new_name = available[count]
+                    old_to_new_name[old_name] = new_name
+                    mapped_scene_objects.add(new_name)
+                    type_usage_count[obj_type] = count + 1
+
+        # Second pass: create mapped poses for objects from the trajectory
+        mapped_poses = []
+        for pose in object_poses:
+            old_name = pose.get('objectName', '')
+            if old_name in old_to_new_name:
+                mapped_pose = pose.copy()
+                mapped_pose['objectName'] = old_to_new_name[old_name]
+                mapped_poses.append(mapped_pose)
+
+        # Third pass: Add unmapped scene objects with their current positions
+        # This is critical for AI2-THOR 5.x which removes objects not in the poses list
+        # Include all objects EXCEPT structural elements that can't be repositioned
+        STRUCTURAL_OBJECTS = {
+            'Floor', 'Wall', 'Ceiling', 'Window', 'Door', 'Doorway',
+            'LightSwitch', 'Doorframe', 'ShowerDoor', 'ShowerGlass',
+            'Room', 'StandardWallSize', 'Void'
+        }
+        for obj_name, obj in scene_objects_by_name.items():
+            if obj_name not in mapped_scene_objects:
+                # Get object type from name (e.g., 'Desk' from 'Desk_abc123')
+                obj_type = obj_name.split('_')[0] if '_' in obj_name else obj_name
+                # Skip structural elements that can't be repositioned
+                if obj_type not in STRUCTURAL_OBJECTS:
+                    preserve_pose = {
+                        'objectName': obj_name,
+                        'position': obj['position'],
+                        'rotation': obj['rotation']
+                    }
+                    mapped_poses.append(preserve_pose)
+
+        return mapped_poses
 
     def set_task(self, traj, args, reward_type='sparse', max_episode_length=2000):
         '''
@@ -126,10 +268,18 @@ class ThorEnv(Controller):
         task_type = traj['task_type']
         self.task = get_task(task_type, traj, self, args, reward_type=reward_type, max_episode_length=max_episode_length)
 
-    def step(self, action, smooth_nav=False):
+    def step(self, action=None, smooth_nav=False, **kwargs):
         '''
         overrides ai2thor.controller.Controller.step() for smooth navigation and goal_condition updates
         '''
+        # Handle string actions or keyword-only calls (used during initialization by ai2thor Controller)
+        if action is None or isinstance(action, str):
+            return super().step(action=action, **kwargs)
+
+        # Convert old TeleportFull format to AI2-THOR 4.x format
+        if isinstance(action, dict) and action.get('action') == 'TeleportFull':
+            action = self._convert_teleport_action(action)
+
         if smooth_nav:
             if "MoveAhead" in action['action']:
                 self.smooth_move_ahead(action)
@@ -167,9 +317,12 @@ class ThorEnv(Controller):
         if event.metadata['lastActionSuccess']:
             # clean
             if action['action'] == 'ToggleObjectOn' and "Faucet" in action['objectId']:
-                sink_basin = get_obj_of_type_closest_to_obj('SinkBasin', action['objectId'], event.metadata)
-                cleaned_object_ids = sink_basin['receptacleObjectIds']
-                self.cleaned_objects = self.cleaned_objects | set(cleaned_object_ids) if cleaned_object_ids is not None else set()
+                faucet_obj = game_util.get_object(action['objectId'], event.metadata)
+                if faucet_obj is not None:
+                    sink_basin = get_obj_of_type_closest_to_obj('SinkBasin', faucet_obj, event.metadata)
+                    if sink_basin is not None:
+                        cleaned_object_ids = sink_basin.get('receptacleObjectIds')
+                        self.cleaned_objects = self.cleaned_objects | set(cleaned_object_ids) if cleaned_object_ids is not None else set()
             # heat
             if action['action'] == 'ToggleObjectOn' and "Microwave" in action['objectId']:
                 microwave = get_objects_of_type('Microwave', event.metadata)[0]
@@ -258,29 +411,26 @@ class ThorEnv(Controller):
         events = []
         for xx in np.arange(.1, 1.0001, .1):
             if xx < 1:
+                # AI2-THOR 5.x: TeleportFull doesn't accept render parameters
                 teleport_action = {
                     'action': 'TeleportFull',
-                    'rotation': np.round(start_rotation * (1 - xx) + end_rotation * xx, 3),
+                    'rotation': {'x': 0, 'y': np.round(start_rotation * (1 - xx) + end_rotation * xx, 3), 'z': 0},
                     'x': position['x'],
                     'z': position['z'],
                     'y': position['y'],
                     'horizon': horizon,
-                    'tempRenderChange': True,
-                    'renderNormalsImage': False,
-                    'renderImage': render_settings['renderImage'],
-                    'renderClassImage': render_settings['renderClassImage'],
-                    'renderObjectImage': render_settings['renderObjectImage'],
-                    'renderDepthImage': render_settings['renderDepthImage'],
+                    'standing': True,
                 }
                 event = super().step(teleport_action)
             else:
                 teleport_action = {
                     'action': 'TeleportFull',
-                    'rotation': np.round(start_rotation * (1 - xx) + end_rotation * xx, 3),
+                    'rotation': {'x': 0, 'y': np.round(start_rotation * (1 - xx) + end_rotation * xx, 3), 'z': 0},
                     'x': position['x'],
                     'z': position['z'],
                     'y': position['y'],
                     'horizon': horizon,
+                    'standing': True,
                 }
                 event = super().step(teleport_action)
 
@@ -303,29 +453,26 @@ class ThorEnv(Controller):
         events = []
         for xx in np.arange(.1, 1.0001, .1):
             if xx < 1:
+                # AI2-THOR 5.x: TeleportFull doesn't accept render parameters
                 teleport_action = {
                     'action': 'TeleportFull',
-                    'rotation': rotation,
+                    'rotation': {'x': 0, 'y': rotation, 'z': 0},
                     'x': position['x'],
                     'z': position['z'],
                     'y': position['y'],
                     'horizon': np.round(start_horizon * (1 - xx) + end_horizon * xx, 3),
-                    'tempRenderChange': True,
-                    'renderNormalsImage': False,
-                    'renderImage': render_settings['renderImage'],
-                    'renderClassImage': render_settings['renderClassImage'],
-                    'renderObjectImage': render_settings['renderObjectImage'],
-                    'renderDepthImage': render_settings['renderDepthImage'],
+                    'standing': True,
                 }
                 event = super().step(teleport_action)
             else:
                 teleport_action = {
                     'action': 'TeleportFull',
-                    'rotation': rotation,
+                    'rotation': {'x': 0, 'y': rotation, 'z': 0},
                     'x': position['x'],
                     'z': position['z'],
                     'y': position['y'],
                     'horizon': np.round(start_horizon * (1 - xx) + end_horizon * xx, 3),
+                    'standing': True,
                 }
                 event = super().step(teleport_action)
 
@@ -345,19 +492,15 @@ class ThorEnv(Controller):
         end_horizon = start_horizon + angle
         position = event.metadata['agent']['position']
 
+        # AI2-THOR 5.x: TeleportFull doesn't accept render parameters
         teleport_action = {
             'action': 'TeleportFull',
-            'rotation': rotation,
+            'rotation': {'x': 0, 'y': rotation, 'z': 0},
             'x': position['x'],
             'z': position['z'],
             'y': position['y'],
             'horizon': np.round(end_horizon, 3),
-            'tempRenderChange': True,
-            'renderNormalsImage': False,
-            'renderImage': render_settings['renderImage'],
-            'renderClassImage': render_settings['renderClassImage'],
-            'renderObjectImage': render_settings['renderObjectImage'],
-            'renderDepthImage': render_settings['renderDepthImage'],
+            'standing': True,
         }
         event = super().step(teleport_action)
         return event
@@ -375,19 +518,15 @@ class ThorEnv(Controller):
         start_rotation = rotation['y']
         end_rotation = start_rotation + angle
 
+        # AI2-THOR 5.x: TeleportFull doesn't accept render parameters
         teleport_action = {
             'action': 'TeleportFull',
-            'rotation': np.round(end_rotation, 3),
+            'rotation': {'x': 0, 'y': np.round(end_rotation, 3), 'z': 0},
             'x': position['x'],
             'z': position['z'],
             'y': position['y'],
             'horizon': horizon,
-            'tempRenderChange': True,
-            'renderNormalsImage': False,
-            'renderImage': render_settings['renderImage'],
-            'renderClassImage': render_settings['renderClassImage'],
-            'renderObjectImage': render_settings['renderObjectImage'],
-            'renderDepthImage': render_settings['renderDepthImage'],
+            'standing': True,
         }
         event = super().step(teleport_action)
         return event
@@ -430,10 +569,9 @@ class ThorEnv(Controller):
                           objectId=object_id)
             event = self.step(action)
         elif "PutObject" in action:
-            inventory_object_id = self.last_event.metadata['inventoryObjects'][0]['objectId']
+            # AI2-THOR 5.x: PutObject takes objectId (receptacle) not receptacleObjectId
             action = dict(action="PutObject",
-                          objectId=inventory_object_id,
-                          receptacleObjectId=object_id,
+                          objectId=object_id,
                           forceAction=True,
                           placeStationary=True)
             event = self.step(action)
@@ -470,11 +608,15 @@ class ThorEnv(Controller):
         if event.metadata['lastActionSuccess'] and 'Faucet' in object_id:
             # Need to delay one frame to let `isDirty` update on stream-affected.
             event = self.step({'action': 'Pass'})
-            sink_basin_obj = game_util.get_obj_of_type_closest_to_obj("SinkBasin", object_id, event.metadata)
-            for in_sink_obj_id in sink_basin_obj['receptacleObjectIds']:
-                if (game_util.get_object(in_sink_obj_id, event.metadata)['dirtyable']
-                        and game_util.get_object(in_sink_obj_id, event.metadata)['isDirty']):
-                    event = self.step({'action': 'CleanObject', 'objectId': in_sink_obj_id})
+            # Look up the faucet object dict from the object ID
+            faucet_obj = game_util.get_object(object_id, event.metadata)
+            if faucet_obj is not None:
+                sink_basin_obj = game_util.get_obj_of_type_closest_to_obj("SinkBasin", faucet_obj, event.metadata)
+                if sink_basin_obj is not None and sink_basin_obj.get('receptacleObjectIds'):
+                    for in_sink_obj_id in sink_basin_obj['receptacleObjectIds']:
+                        in_sink_obj = game_util.get_object(in_sink_obj_id, event.metadata)
+                        if in_sink_obj and in_sink_obj.get('dirtyable') and in_sink_obj.get('isDirty'):
+                            event = self.step({'action': 'CleanObject', 'objectId': in_sink_obj_id})
         return event
 
     def prune_by_any_interaction(self, instances_ids):

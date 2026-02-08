@@ -1,12 +1,22 @@
-model_name: "EleutherAI/gpt-neo-1.3B"
-use_accelerate_device_map: True
-load_in_8bit: False
-device: 'cuda'
+# LLM Provider Configuration (OpenAI API compatible only)
+provider: "openai"  # Options: openai, vllm
+model_name: "gpt-4"  # Model name for the selected provider
+
+# API Configuration (uses environment variables if empty)
+api_key: ''
+api_base: ''  # Optional: custom API endpoint
+
+# Generation Settings
+temperature: 0.0
+max_tokens: 500
+
+# Reasoning Model Settings (for o1, o3, gpt-5.x models)
+# Options: "low" (faster), "medium" (balanced), "high" (thorough but slower)
+reasoning_effort: "low"
+
+# Task Planning Settings
 max_steps: 25
 random_seed: 0
 scoring_batch_size: 4
 score_function: 'sum'
-scoring_mode: 'guidance'  # naive, reuse_prompt, guidance
-use_predefined_prompt: False  # NOTE: This uses a pre-defined prompt, and you can put a failure message in the prompt.
-hf_auth_token: ''  # NOTE: this is required for downloading the private model from HuggingFace
-openai_api_key: ''  # NOTE: this is required for using the OpenAI API
+use_predefined_prompt: False
